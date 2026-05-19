@@ -76,6 +76,42 @@ function barkDiagnostics() {
   };
 }
 
+function reminderBrief(reminder) {
+  if (!reminder) return null;
+  return {
+    id: reminder.id,
+    planDate: reminder.planDate,
+    blockId: reminder.blockId,
+    kind: reminder.kind,
+    channel: reminder.channel,
+    fireAt: reminder.fireAt,
+    title: reminder.title,
+    body: reminder.body,
+    status: reminder.status,
+    retryCount: reminder.retryCount,
+    lastError: reminder.lastError || "",
+    deliveredAt: reminder.deliveredAt || null,
+  };
+}
+
+function schedulerBrief(now = new Date()) {
+  const pendingItems = store.reminders
+    .filter((reminder) => reminder.status === "pending" && new Date(reminder.fireAt) >= now)
+    .sort((a, b) => new Date(a.fireAt) - new Date(b.fireAt));
+  const stalePending = store.reminders.filter(
+    (reminder) => reminder.status === "pending" && new Date(reminder.fireAt) < now,
+  ).length;
+  const failedItems = store.reminders
+    .filter((reminder) => reminder.status === "failed")
+    .sort((a, b) => new Date(b.fireAt) - new Date(a.fireAt));
+  return {
+    nextReminder: reminderBrief(pendingItems[0]),
+    upcoming: pendingItems.slice(0, 5).map(reminderBrief),
+    recentFailures: failedItems.slice(0, 5).map(reminderBrief),
+    stalePending,
+  };
+}
+
 async function handler(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || "127.0.0.1"}`);
   if (request.method === "OPTIONS") return send(response, 204, "");
@@ -220,7 +256,12 @@ async function handler(request, response) {
     }
 
     if (request.method === "GET" && url.pathname === "/api/scheduler/status") {
-      const pending = store.reminders.filter((reminder) => reminder.status === "pending").length;
+      const brief = schedulerBrief();
+      const pending = brief.upcoming.length
+        ? store.reminders.filter(
+            (reminder) => reminder.status === "pending" && new Date(reminder.fireAt) >= new Date(),
+          ).length
+        : 0;
       const failed = store.reminders.filter((reminder) => reminder.status === "failed").length;
       const delivered = store.reminders.filter((reminder) => reminder.status === "delivered").length;
       return send(response, 200, {
@@ -230,6 +271,10 @@ async function handler(request, response) {
         delivered,
         subscriptions: store.pushSubscriptions.length,
         bark: barkDiagnostics(),
+        nextReminder: brief.nextReminder,
+        upcoming: brief.upcoming,
+        recentFailures: brief.recentFailures,
+        stalePending: brief.stalePending,
         lastDeliveries: store.deliveryLog.slice(-8).reverse(),
       });
     }

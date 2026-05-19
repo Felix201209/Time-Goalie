@@ -132,6 +132,28 @@ function appendRescueNote(note, label) {
   return [note, suffix].filter(Boolean).join(" · ").slice(0, MAX_NOTE_LENGTH);
 }
 
+function reminderTimeLabel(fireAt) {
+  const date = new Date(fireAt);
+  if (Number.isNaN(date.getTime())) return "时间未知";
+  return date.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function reminderKindLabel(kind) {
+  if (kind === "lead") return "提前";
+  if (kind === "start") return "开始";
+  if (kind === "overdue") return "超时";
+  if (kind === "morning-brief") return "早间";
+  if (kind === "evening-review") return "晚间";
+  if (kind === "carry-over") return "结转";
+  return "提醒";
+}
+
 function App() {
   const [plan, setPlan] = useState(() => applyDateFromURL(loadPlan()));
   const [form, setForm] = useState(emptyForm);
@@ -147,6 +169,7 @@ function App() {
   const [activeDragId, setActiveDragId] = useState(null);
   const [templatePending, setTemplatePending] = useState("");
   const [templatesExpanded, setTemplatesExpanded] = useState(false);
+  const [reminderPanelOpen, setReminderPanelOpen] = useState(false);
   const [captureText, setCaptureText] = useState("");
   const [capturePreset, setCapturePreset] = useState(CAPTURE_PRESETS[0].id);
   const fileInputRef = useRef(null);
@@ -1652,6 +1675,16 @@ function App() {
             >
               {planSync.barkSummary}
             </span>
+            <button
+              className={reminderPanelOpen ? "ghost-button active" : "ghost-button"}
+              type="button"
+              aria-expanded={reminderPanelOpen}
+              aria-controls={reminderPanelOpen ? "reminder-queue-panel" : undefined}
+              onClick={() => setReminderPanelOpen((open) => !open)}
+            >
+              <BellRing size={16} />
+              <span>提醒队列</span>
+            </button>
             <button className="ghost-button" type="button" onClick={() => firstRunSetup.setOpen(true)}>
               <Settings2 size={16} />
               <span>配置</span>
@@ -1661,6 +1694,63 @@ function App() {
               <span>ICS</span>
             </button>
           </div>
+          {reminderPanelOpen && (
+            <div className="reminder-panel" id="reminder-queue-panel" aria-label="提醒队列详情">
+              <div className="reminder-panel-head">
+                <div>
+                  <strong>{planSync.status.online ? "提醒守门中" : "后端未连接"}</strong>
+                  <span>{planSync.nextReminderLabel}</span>
+                  {planSync.status.stalePending > 0 && (
+                    <small>{planSync.status.stalePending} 条过期待发已从当前队列隐藏</small>
+                  )}
+                </div>
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={() => reminderSettings.sendTest("bark")}
+                >
+                  <BellRing size={15} />
+                  <span>测试 Bark</span>
+                </button>
+              </div>
+              <div className="reminder-panel-grid">
+                <div>
+                  <span className="reminder-kicker">接下来</span>
+                  <div className="reminder-list">
+                    {(planSync.status.upcoming || []).length ? (
+                      planSync.status.upcoming.slice(0, 4).map((reminder) => (
+                        <span key={reminder.id} className="reminder-row">
+                          <em>{reminderTimeLabel(reminder.fireAt)}</em>
+                          <strong>{reminder.title}</strong>
+                          <small>
+                            {reminderKindLabel(reminder.kind)} · {reminder.channel}
+                          </small>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="reminder-empty">暂无待发提醒，写入未来时间块后会自动生成。</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <span className="reminder-kicker">需要处理</span>
+                  <div className="reminder-list">
+                    {(planSync.status.recentFailures || []).length ? (
+                      planSync.status.recentFailures.slice(0, 3).map((reminder) => (
+                        <span key={reminder.id} className="reminder-row failed">
+                          <em>{reminderTimeLabel(reminder.fireAt)}</em>
+                          <strong>{reminder.title}</strong>
+                          <small>{reminder.lastError || "发送失败，检查 Bark key 或网络"}</small>
+                        </span>
+                      ))
+                    ) : (
+                      <span className="reminder-empty">没有失败记录。</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {aiInbox.warning && <div className="inline-note warning-note">{aiInbox.warning}</div>}
           {aiInbox.draft && (
             <div className="draft-card">

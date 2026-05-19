@@ -10,6 +10,10 @@ export function usePlanSync(plan, onToast) {
     failed: 0,
     subscriptions: 0,
     bark: null,
+    nextReminder: null,
+    upcoming: [],
+    recentFailures: [],
+    stalePending: 0,
     lastDeliveries: [],
   });
 
@@ -20,10 +24,17 @@ export function usePlanSync(plan, onToast) {
         await syncPlan(plan);
         const scheduled = await scheduleReminders({ plan, date: plan.selectedDate });
         if (!cancelled) {
+          const brief = briefFromReminders(scheduled.reminders || []);
           setStatus((current) => ({
             ...current,
             online: true,
-            pending: scheduled.reminders?.filter((r) => r.status === "pending").length ?? current.pending,
+            pending: brief.pending,
+            failed: brief.failed,
+            delivered: brief.delivered,
+            nextReminder: brief.nextReminder,
+            upcoming: brief.upcoming,
+            recentFailures: brief.recentFailures,
+            stalePending: brief.stalePending,
           }));
         }
       } catch {
@@ -68,6 +79,20 @@ export function usePlanSync(plan, onToast) {
     return status.bark?.level ? `Bark ${status.bark.level}` : "Bark 守门中";
   }, [status]);
 
+  const nextReminderLabel = useMemo(() => {
+    if (!status.online) return "后端未连接";
+    if (!status.nextReminder) return status.pending ? "等待同步提醒队列" : "暂无待发提醒";
+    const date = new Date(status.nextReminder.fireAt);
+    const time = date.toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    return `${time} · ${status.nextReminder.title || "Time Goalie"}`;
+  }, [status]);
+
   async function downloadIcs() {
     try {
       const blob = await exportIcs(plan, plan.selectedDate);
@@ -78,5 +103,27 @@ export function usePlanSync(plan, onToast) {
     }
   }
 
-  return { status, summary, barkSummary, downloadIcs };
+  return { status, summary, barkSummary, nextReminderLabel, downloadIcs };
+}
+
+function briefFromReminders(reminders) {
+  const now = new Date();
+  const pendingItems = reminders
+    .filter((reminder) => reminder.status === "pending" && new Date(reminder.fireAt) >= now)
+    .sort((a, b) => new Date(a.fireAt) - new Date(b.fireAt));
+  const failedItems = reminders
+    .filter((reminder) => reminder.status === "failed")
+    .sort((a, b) => new Date(b.fireAt) - new Date(a.fireAt));
+  const stalePending = reminders.filter(
+    (reminder) => reminder.status === "pending" && new Date(reminder.fireAt) < now,
+  ).length;
+  return {
+    pending: pendingItems.length,
+    failed: failedItems.length,
+    delivered: reminders.filter((reminder) => reminder.status === "delivered").length,
+    nextReminder: pendingItems[0] || null,
+    upcoming: pendingItems.slice(0, 5),
+    recentFailures: failedItems.slice(0, 5),
+    stalePending,
+  };
 }

@@ -13,6 +13,7 @@ describe("App shell", () => {
     expect(html).toContain("万能记录");
     expect(html).toContain("读书");
     expect(html).toContain("配置");
+    expect(html).toContain("提醒队列");
     expect(html).toContain("新时间块");
     expect(html).toContain("加入规划");
     expect(html).toContain("今日防线");

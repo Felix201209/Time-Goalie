@@ -108,6 +108,40 @@ describe("closed-loop core", () => {
     expect(store.reminders[0].status).toBe("delivered");
   });
 
+  it("keeps retrying failed Bark reminders before marking failed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 400, text: async () => "bad device key" }),
+    );
+    const store = {
+      settings: normalizeSettings({ channels: { bark: true }, bark: { key: "bad-key" } }),
+      reminders: [
+        {
+          id: "bark-due",
+          planDate: "2026-05-16",
+          blockId: "block-1",
+          kind: "start",
+          channel: "bark",
+          fireAt: "2026-05-16T09:00:00.000Z",
+          title: "开始",
+          body: "执行",
+          status: "pending",
+          retryCount: 0,
+        },
+      ],
+      deliveryLog: [],
+      pushSubscriptions: [],
+    };
+
+    await deliverDueReminders(store, new Date("2026-05-16T09:01:00.000Z"));
+    expect(store.reminders[0]).toMatchObject({ status: "pending", retryCount: 1 });
+    await deliverDueReminders(store, new Date("2026-05-16T09:02:00.000Z"));
+    await deliverDueReminders(store, new Date("2026-05-16T09:03:00.000Z"));
+    expect(store.reminders[0]).toMatchObject({ status: "failed", retryCount: 3 });
+    expect(store.deliveryLog.at(-1).message).toContain("bad device key");
+    vi.unstubAllGlobals();
+  });
+
   it("builds Bark URLs safely", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal("fetch", fetchSpy);

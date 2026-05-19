@@ -432,6 +432,12 @@ button {
   width: 100%;
 }
 
+.ghost-button.active {
+  color: #0874b8;
+  border-color: rgba(19, 158, 247, 0.26);
+  background: rgba(19, 158, 247, 0.1);
+}
+
 .icon-button:hover,
 .primary-button:hover,
 .ghost-button:hover,
@@ -1118,6 +1124,104 @@ button {
 .status-pill.online {
   color: #087c45;
   background: rgba(218, 248, 232, 0.7);
+}
+
+.reminder-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.34);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.62) inset,
+    0 18px 42px rgba(43, 113, 166, 0.08);
+}
+
+.reminder-panel-head,
+.reminder-panel-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.reminder-panel-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.reminder-panel-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.reminder-panel-head strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reminder-panel-head span,
+.reminder-panel-head small,
+.reminder-kicker,
+.reminder-empty,
+.reminder-row small {
+  color: var(--soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.reminder-panel-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.reminder-panel-grid > div {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.reminder-list {
+  display: grid;
+  gap: 6px;
+}
+
+.reminder-row,
+.reminder-empty {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.reminder-row em {
+  color: #0874b8;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.reminder-row strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-row.failed {
+  border-color: rgba(226, 88, 77, 0.26);
+  background: rgba(226, 88, 77, 0.08);
+}
+
+.reminder-row.failed em,
+.reminder-row.failed small {
+  color: var(--danger);
 }
 
 .automation-grid {
@@ -2888,8 +2992,13 @@ textarea:focus {
   .ai-panel .template-row,
   .ai-panel .capture-bar,
   .ai-panel .command-actions,
-  .setup-strip {
+  .setup-strip,
+  .reminder-panel {
     justify-content: flex-start;
+  }
+
+  .reminder-panel-grid {
+    grid-template-columns: 1fr;
   }
 
   .workspace {
@@ -3027,8 +3136,13 @@ textarea:focus {
   .capture-copy,
   .capture-bar input,
   .capture-bar select,
+  .capture-preview,
   .capture-bar .primary-button {
     flex-basis: 100%;
+  }
+
+  .reminder-panel-head {
+    grid-template-columns: 1fr;
   }
 
   .capture-bar input {
