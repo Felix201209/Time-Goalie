@@ -83,6 +83,7 @@ npm run test:e2e
 - `public/` - manifest, icons, favicon, service worker.
 - `tests/e2e/` - Playwright smoke flow for the closed-loop path.
 - `scripts/dev-full.mjs` - starts frontend and backend together.
+- `scripts/sync-public.mjs` - allowlist sync into the clean public GitHub repo.
 
 ## Local Data Model
 
@@ -92,10 +93,13 @@ Backend runtime data is stored under `server/data/` in local development. That f
 
 ## Public Repo Hygiene
 
-Before publishing, verify the git tree:
+Before publishing, sync and verify the git tree:
 
 ```bash
-git ls-files
+npm run public:sync
+npm run public:audit
 ```
 
-The tree should include source and config files only. It should not include `server/data`, `dist`, `node_modules`, `.env.local`, screenshots, or Playwright reports.
+The sync allowlist keeps source, tests, docs, and public assets only. It should
+not include `server/data`, `dist`, `node_modules`, `.env.local`, screenshots,
+Playwright reports, logs, or archives.
