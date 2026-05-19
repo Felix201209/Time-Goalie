@@ -1263,6 +1263,7 @@ button {
 }
 
 .reminder-panel-head,
+.reminder-snooze-row,
 .reminder-panel-actions,
 .reminder-health,
 .reminder-receipt,
@@ -1278,6 +1279,11 @@ button {
 
 .reminder-panel-actions {
   grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: flex-start;
+}
+
+.reminder-snooze-row {
+  grid-template-columns: minmax(0, max-content);
   justify-content: flex-start;
 }
 

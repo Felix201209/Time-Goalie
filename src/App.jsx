@@ -1915,6 +1915,18 @@ function App() {
                   <span>测试 Bark</span>
                 </button>
               </div>
+              <div className="reminder-snooze-row" aria-label="提醒延后操作">
+                <button
+                  className={
+                    planSync.status.nextReminder ? "ghost-button hot-action" : "ghost-button dimmed-action"
+                  }
+                  type="button"
+                  onClick={() => planSync.snoozeNext(15)}
+                >
+                  <Clock3 size={15} />
+                  <span>延后 15 分</span>
+                </button>
+              </div>
               <div className={`reminder-receipt ${planSync.deliveryReceipt.state}`} aria-label="提醒回执">
                 <span>{planSync.deliveryReceipt.label}</span>
                 <strong>{planSync.deliveryReceipt.detail}</strong>

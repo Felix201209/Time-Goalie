@@ -15,6 +15,7 @@ import {
   scheduleFromPlan,
   sendBark,
   skipStalePendingReminders,
+  snoozeNextReminder,
 } from "./core.mjs";
 
 const plan = {
@@ -181,6 +182,68 @@ describe("closed-loop core", () => {
     expect(store.reminders.find((reminder) => reminder.id === "failed")).toMatchObject({ status: "pending" });
     expect(store.reminders.find((reminder) => reminder.id === "future")).toMatchObject({
       status: "pending",
+    });
+  });
+
+  it("snoozes the next pending reminder without touching later reminders", () => {
+    const store = {
+      reminders: [
+        {
+          id: "later",
+          status: "pending",
+          retryCount: 2,
+          lastError: "old",
+          fireAt: "2026-05-16T12:00:00.000Z",
+        },
+        {
+          id: "next",
+          status: "pending",
+          retryCount: 1,
+          lastError: "timeout",
+          fireAt: "2026-05-16T10:05:00.000Z",
+        },
+      ],
+    };
+
+    const reminder = snoozeNextReminder(store, 15, new Date("2026-05-16T10:00:00.000Z"));
+
+    expect(reminder).toMatchObject({
+      id: "next",
+      status: "pending",
+      retryCount: 0,
+      lastError: "已延后提醒",
+      fireAt: "2026-05-16T10:15:00.000Z",
+    });
+    expect(store.reminders.find((item) => item.id === "later")).toMatchObject({
+      fireAt: "2026-05-16T12:00:00.000Z",
+      retryCount: 2,
+    });
+  });
+
+  it("keeps snoozed reminders when the plan sync schedules the original time again", () => {
+    const existing = [
+      {
+        id: "same",
+        status: "pending",
+        retryCount: 0,
+        lastError: "已延后提醒",
+        fireAt: "2026-05-16T10:15:00.000Z",
+      },
+    ];
+    const incoming = [
+      {
+        id: "same",
+        status: "pending",
+        retryCount: 0,
+        lastError: "",
+        fireAt: "2026-05-16T10:00:00.000Z",
+      },
+    ];
+
+    expect(mergeReminders(existing, incoming)[0]).toMatchObject({
+      id: "same",
+      lastError: "已延后提醒",
+      fireAt: "2026-05-16T10:15:00.000Z",
     });
   });
 

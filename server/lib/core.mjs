@@ -506,7 +506,14 @@ export function mergeReminders(existing, incoming) {
     const normalized = normalizeReminder(reminder);
     if (!normalized) continue;
     const current = map.get(normalized.id);
-    map.set(normalized.id, current && current.status !== "pending" ? current : { ...current, ...normalized });
+    if (current?.status === "pending" && current.lastError === "已延后提醒") {
+      map.set(normalized.id, current);
+    } else {
+      map.set(
+        normalized.id,
+        current && current.status !== "pending" ? current : { ...current, ...normalized },
+      );
+    }
   }
   return [...map.values()].sort((a, b) => new Date(a.fireAt) - new Date(b.fireAt));
 }
@@ -597,6 +604,20 @@ export function skipStalePendingReminders(store, now = new Date()) {
     };
   });
   return count;
+}
+
+export function snoozeNextReminder(store, minutes = 15, now = new Date()) {
+  const delay = Math.max(5, Math.min(180, Number(minutes) || 15));
+  const candidates = (store.reminders || [])
+    .filter((reminder) => reminder.status === "pending" && new Date(reminder.fireAt) >= now)
+    .sort((a, b) => new Date(a.fireAt) - new Date(b.fireAt));
+  const target = candidates[0];
+  if (!target) return null;
+  target.fireAt = new Date(now.getTime() + delay * 60 * 1000).toISOString();
+  target.retryCount = 0;
+  target.lastError = "已延后提醒";
+  target.status = "pending";
+  return target;
 }
 
 export async function deliverReminder(reminder, settings, pushSubscriptions = []) {

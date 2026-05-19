@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { exportIcs, recoverReminders, scheduleReminders, schedulerStatus, syncPlan } from "../api.js";
+import {
+  exportIcs,
+  recoverReminders,
+  scheduleReminders,
+  schedulerStatus,
+  snoozeReminder,
+  syncPlan,
+} from "../api.js";
 import { downloadBlob } from "../closedLoop.js";
 
 export function usePlanSync(plan, onToast) {
@@ -197,6 +204,16 @@ export function usePlanSync(plan, onToast) {
     }
   }
 
+  async function snoozeNext(minutes = 15) {
+    try {
+      const payload = await snoozeReminder(minutes);
+      setStatus({ online: true, ...payload.status });
+      onToast?.(`已延后 ${minutes} 分钟：${payload.reminder?.title || "下一条提醒"}`);
+    } catch (error) {
+      onToast?.(`延后失败：${error.message || "暂无待发的未来提醒"}`);
+    }
+  }
+
   return {
     status,
     summary,
@@ -207,6 +224,7 @@ export function usePlanSync(plan, onToast) {
     refreshStatus,
     downloadIcs,
     recoverQueue,
+    snoozeNext,
   };
 }
 

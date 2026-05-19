@@ -20,6 +20,7 @@ import {
   sendWebPush,
   requeueFailedReminders,
   skipStalePendingReminders,
+  snoozeNextReminder,
   writeStore,
 } from "./lib/core.mjs";
 
@@ -297,6 +298,18 @@ async function handler(request, response) {
       }
       await persist();
       return send(response, 200, { ok: true, action, count, status: schedulerStatusPayload() });
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/reminders/snooze") {
+      const body = await json(request);
+      const reminder = snoozeNextReminder(store, body.minutes || 15);
+      if (!reminder) return send(response, 404, { error: "没有可稍后提醒的待发事项" });
+      await persist();
+      return send(response, 200, {
+        ok: true,
+        reminder: reminderBrief(reminder),
+        status: schedulerStatusPayload(),
+      });
     }
 
     if (request.method === "POST" && url.pathname === "/api/export/ics") {

@@ -75,6 +75,13 @@ export function recoverReminders(action) {
   });
 }
 
+export function snoozeReminder(minutes = 15) {
+  return api("/reminders/snooze", {
+    method: "POST",
+    body: JSON.stringify({ minutes }),
+  });
+}
+
 export function schedulerStatus() {
   return api("/scheduler/status");
 }
