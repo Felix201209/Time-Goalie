@@ -1140,6 +1140,7 @@ button {
 }
 
 .reminder-panel-head,
+.reminder-panel-actions,
 .reminder-panel-grid {
   display: grid;
   gap: 10px;
@@ -1148,6 +1149,11 @@ button {
 .reminder-panel-head {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+}
+
+.reminder-panel-actions {
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  justify-content: flex-start;
 }
 
 .reminder-panel-head > div {
@@ -3142,6 +3148,10 @@ textarea:focus {
   }
 
   .reminder-panel-head {
+    grid-template-columns: 1fr;
+  }
+
+  .reminder-panel-actions {
     grid-template-columns: 1fr;
   }
 

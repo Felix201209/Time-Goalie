@@ -68,6 +68,13 @@ export function testReminder(channel) {
   });
 }
 
+export function recoverReminders(action) {
+  return api("/reminders/recover", {
+    method: "POST",
+    body: JSON.stringify({ action }),
+  });
+}
+
 export function schedulerStatus() {
   return api("/scheduler/status");
 }

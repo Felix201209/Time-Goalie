@@ -1713,6 +1713,28 @@ function App() {
                   <span>测试 Bark</span>
                 </button>
               </div>
+              <div className="reminder-panel-actions" role="group" aria-label="提醒队列恢复操作">
+                <button
+                  className={
+                    planSync.status.failed ? "ghost-button hot-action" : "ghost-button dimmed-action"
+                  }
+                  type="button"
+                  onClick={() => planSync.recoverQueue("retryFailed")}
+                >
+                  <RefreshCw size={15} />
+                  <span>重试失败 {planSync.status.failed || ""}</span>
+                </button>
+                <button
+                  className={
+                    planSync.status.stalePending ? "ghost-button hot-action" : "ghost-button dimmed-action"
+                  }
+                  type="button"
+                  onClick={() => planSync.recoverQueue("clearStale")}
+                >
+                  <X size={15} />
+                  <span>清理过期 {planSync.status.stalePending || ""}</span>
+                </button>
+              </div>
               <div className="reminder-panel-grid">
                 <div>
                   <span className="reminder-kicker">接下来</span>

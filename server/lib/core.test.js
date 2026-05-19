@@ -9,10 +9,12 @@ import {
   mergeReminders,
   normalizeSettings,
   readEnvFile,
+  requeueFailedReminders,
   saveSetupConfig,
   sanitizePlanDraft,
   scheduleFromPlan,
   sendBark,
+  skipStalePendingReminders,
 } from "./core.mjs";
 
 const plan = {
@@ -140,6 +142,46 @@ describe("closed-loop core", () => {
     expect(store.reminders[0]).toMatchObject({ status: "failed", retryCount: 3 });
     expect(store.deliveryLog.at(-1).message).toContain("bad device key");
     vi.unstubAllGlobals();
+  });
+
+  it("can requeue failed reminders and skip stale pending reminders", () => {
+    const store = {
+      reminders: [
+        {
+          id: "failed",
+          status: "failed",
+          retryCount: 3,
+          lastError: "bad key",
+          fireAt: "2026-05-16T09:00:00.000Z",
+        },
+        {
+          id: "stale",
+          status: "pending",
+          retryCount: 0,
+          fireAt: "2026-05-16T08:00:00.000Z",
+        },
+        {
+          id: "future",
+          status: "pending",
+          retryCount: 0,
+          fireAt: "2026-05-16T12:00:00.000Z",
+        },
+      ],
+    };
+
+    expect(requeueFailedReminders(store, new Date("2026-05-16T10:02:00.000Z"))).toBe(1);
+    expect(store.reminders[0]).toMatchObject({
+      status: "pending",
+      retryCount: 0,
+      lastError: "",
+      fireAt: "2026-05-16T10:02:00.000Z",
+    });
+
+    expect(skipStalePendingReminders(store, new Date("2026-05-16T10:01:00.000Z"))).toBe(1);
+    expect(store.reminders.find((reminder) => reminder.id === "failed")).toMatchObject({ status: "pending" });
+    expect(store.reminders.find((reminder) => reminder.id === "future")).toMatchObject({
+      status: "pending",
+    });
   });
 
   it("builds Bark URLs safely", async () => {

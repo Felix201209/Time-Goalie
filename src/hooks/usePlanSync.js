@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { exportIcs, scheduleReminders, schedulerStatus, syncPlan } from "../api.js";
+import { exportIcs, recoverReminders, scheduleReminders, schedulerStatus, syncPlan } from "../api.js";
 import { downloadBlob } from "../closedLoop.js";
 
 export function usePlanSync(plan, onToast) {
@@ -103,7 +103,18 @@ export function usePlanSync(plan, onToast) {
     }
   }
 
-  return { status, summary, barkSummary, nextReminderLabel, downloadIcs };
+  async function recoverQueue(action) {
+    try {
+      const payload = await recoverReminders(action);
+      setStatus({ online: true, ...payload.status });
+      if (action === "retryFailed") onToast?.(`已重新排队 ${payload.count} 条失败提醒`);
+      if (action === "clearStale") onToast?.(`已清理 ${payload.count} 条过期待发`);
+    } catch (error) {
+      onToast?.(error.message || "提醒队列恢复失败");
+    }
+  }
+
+  return { status, summary, barkSummary, nextReminderLabel, downloadIcs, recoverQueue };
 }
 
 function briefFromReminders(reminders) {

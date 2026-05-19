@@ -569,6 +569,36 @@ export async function deliverDueReminders(store, now = new Date()) {
   return { due: due.length, delivered: due.filter((item) => item.status === "delivered").length };
 }
 
+export function requeueFailedReminders(store, now = new Date(Date.now() + 10_000)) {
+  let count = 0;
+  store.reminders = (store.reminders || []).map((reminder) => {
+    if (reminder.status !== "failed") return reminder;
+    count += 1;
+    return {
+      ...reminder,
+      status: "pending",
+      retryCount: 0,
+      lastError: "",
+      fireAt: now.toISOString(),
+    };
+  });
+  return count;
+}
+
+export function skipStalePendingReminders(store, now = new Date()) {
+  let count = 0;
+  store.reminders = (store.reminders || []).map((reminder) => {
+    if (reminder.status !== "pending" || new Date(reminder.fireAt) >= now) return reminder;
+    count += 1;
+    return {
+      ...reminder,
+      status: "skipped",
+      lastError: "已清理过期待发",
+    };
+  });
+  return count;
+}
+
 export async function deliverReminder(reminder, settings, pushSubscriptions = []) {
   if (reminder.channel === "bark") return sendBark(settings.bark, reminder.title, reminder.body);
   if (reminder.channel === "webPush") return sendWebPush(settings, pushSubscriptions, reminder);

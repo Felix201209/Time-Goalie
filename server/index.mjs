@@ -18,6 +18,8 @@ import {
   saveSetupConfig,
   sendBark,
   sendWebPush,
+  requeueFailedReminders,
+  skipStalePendingReminders,
   writeStore,
 } from "./lib/core.mjs";
 
@@ -109,6 +111,29 @@ function schedulerBrief(now = new Date()) {
     upcoming: pendingItems.slice(0, 5).map(reminderBrief),
     recentFailures: failedItems.slice(0, 5).map(reminderBrief),
     stalePending,
+  };
+}
+
+function schedulerStatusPayload() {
+  const now = new Date();
+  const brief = schedulerBrief(now);
+  const pending = store.reminders.filter(
+    (reminder) => reminder.status === "pending" && new Date(reminder.fireAt) >= now,
+  ).length;
+  const failed = store.reminders.filter((reminder) => reminder.status === "failed").length;
+  const delivered = store.reminders.filter((reminder) => reminder.status === "delivered").length;
+  return {
+    ok: true,
+    pending,
+    failed,
+    delivered,
+    subscriptions: store.pushSubscriptions.length,
+    bark: barkDiagnostics(),
+    nextReminder: brief.nextReminder,
+    upcoming: brief.upcoming,
+    recentFailures: brief.recentFailures,
+    stalePending: brief.stalePending,
+    lastDeliveries: store.deliveryLog.slice(-8).reverse(),
   };
 }
 
@@ -256,27 +281,22 @@ async function handler(request, response) {
     }
 
     if (request.method === "GET" && url.pathname === "/api/scheduler/status") {
-      const brief = schedulerBrief();
-      const pending = brief.upcoming.length
-        ? store.reminders.filter(
-            (reminder) => reminder.status === "pending" && new Date(reminder.fireAt) >= new Date(),
-          ).length
-        : 0;
-      const failed = store.reminders.filter((reminder) => reminder.status === "failed").length;
-      const delivered = store.reminders.filter((reminder) => reminder.status === "delivered").length;
-      return send(response, 200, {
-        ok: true,
-        pending,
-        failed,
-        delivered,
-        subscriptions: store.pushSubscriptions.length,
-        bark: barkDiagnostics(),
-        nextReminder: brief.nextReminder,
-        upcoming: brief.upcoming,
-        recentFailures: brief.recentFailures,
-        stalePending: brief.stalePending,
-        lastDeliveries: store.deliveryLog.slice(-8).reverse(),
-      });
+      return send(response, 200, schedulerStatusPayload());
+    }
+
+    if (request.method === "POST" && url.pathname === "/api/reminders/recover") {
+      const body = await json(request);
+      const action = String(body.action || "");
+      let count = 0;
+      if (action === "retryFailed") {
+        count = requeueFailedReminders(store);
+      } else if (action === "clearStale") {
+        count = skipStalePendingReminders(store);
+      } else {
+        return send(response, 400, { error: "action must be retryFailed or clearStale" });
+      }
+      await persist();
+      return send(response, 200, { ok: true, action, count, status: schedulerStatusPayload() });
     }
 
     if (request.method === "POST" && url.pathname === "/api/export/ics") {
