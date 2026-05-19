@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { exportIcs, recoverReminders, scheduleReminders, schedulerStatus, syncPlan } from "../api.js";
 import { downloadBlob } from "../closedLoop.js";
 
@@ -46,6 +46,12 @@ export function usePlanSync(plan, onToast) {
       window.clearTimeout(timer);
     };
   }, [plan]);
+
+  const refreshStatus = useCallback(async () => {
+    const payload = await schedulerStatus();
+    setStatus({ online: true, ...payload });
+    return payload;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +129,53 @@ export function usePlanSync(plan, onToast) {
     [status],
   );
 
+  const deliveryReceipt = useMemo(() => {
+    const last = status.lastDeliveries?.[0];
+    const next = status.nextReminder;
+    const nextDate = next ? new Date(next.fireAt) : null;
+    const nextLabel =
+      nextDate && !Number.isNaN(nextDate.getTime())
+        ? nextDate.toLocaleString("zh-CN", {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })
+        : "";
+    if (!status.online) {
+      return { state: "warn", label: "最近回执", detail: "后端未连接", hint: "启动 dev:full 后再测试。" };
+    }
+    if (!status.bark?.configured) {
+      return { state: "warn", label: "Bark 回执", detail: "Bark 未配置", hint: "去配置里粘贴 Key。" };
+    }
+    const nextHint = next
+      ? `下次 ${nextLabel} ${next.channel === "bark" ? "会推送到手机" : `走 ${next.channel}`}`
+      : "暂无待发提醒，记录未来时间块后会排队。";
+    if (!last) {
+      return {
+        state: "idle",
+        label: "最近回执",
+        detail: "暂无测试记录",
+        hint: nextHint,
+      };
+    }
+    const time = new Date(last.at).toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const isFailed = last.status === "failed";
+    return {
+      state: isFailed ? "warn" : "ok",
+      label: last.channel === "bark" ? "Bark 回执" : "提醒回执",
+      detail: `${isFailed ? "上次失败" : "上次送达"} ${time}`,
+      hint: isFailed ? last.message || "检查 Bark key、Server 或网络。" : nextHint,
+    };
+  }, [status]);
+
   async function downloadIcs() {
     try {
       const blob = await exportIcs(plan, plan.selectedDate);
@@ -144,7 +197,17 @@ export function usePlanSync(plan, onToast) {
     }
   }
 
-  return { status, summary, barkSummary, nextReminderLabel, healthChecks, downloadIcs, recoverQueue };
+  return {
+    status,
+    summary,
+    barkSummary,
+    nextReminderLabel,
+    healthChecks,
+    deliveryReceipt,
+    refreshStatus,
+    downloadIcs,
+    recoverQueue,
+  };
 }
 
 function briefFromReminders(reminders) {

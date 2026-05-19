@@ -1188,6 +1188,15 @@ function App() {
     setTemplatePending("");
   }
 
+  async function testBarkAndRefresh() {
+    await reminderSettings.sendTest("bark");
+    try {
+      await planSync.refreshStatus();
+    } catch {
+      notify("Bark 测试已完成，但回执刷新需要后端在线");
+    }
+  }
+
   function addCaptureItem(event) {
     event?.preventDefault();
     const title = captureText.trim();
@@ -1901,14 +1910,15 @@ function App() {
                     <small>{planSync.status.stalePending} 条过期待发已从当前队列隐藏</small>
                   )}
                 </div>
-                <button
-                  className="ghost-button"
-                  type="button"
-                  onClick={() => reminderSettings.sendTest("bark")}
-                >
+                <button className="ghost-button" type="button" onClick={testBarkAndRefresh}>
                   <BellRing size={15} />
                   <span>测试 Bark</span>
                 </button>
+              </div>
+              <div className={`reminder-receipt ${planSync.deliveryReceipt.state}`} aria-label="提醒回执">
+                <span>{planSync.deliveryReceipt.label}</span>
+                <strong>{planSync.deliveryReceipt.detail}</strong>
+                <small>{planSync.deliveryReceipt.hint}</small>
               </div>
               <div className="reminder-panel-actions" role="group" aria-label="提醒队列恢复操作">
                 <button
@@ -2524,11 +2534,7 @@ function App() {
                 <Settings2 size={16} />
                 <span>{firstRunSetup.saving ? "保存中" : "保存并开始"}</span>
               </button>
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={() => reminderSettings.sendTest("bark")}
-              >
+              <button className="ghost-button" type="button" onClick={testBarkAndRefresh}>
                 <BellRing size={16} />
                 <span>测试 Bark</span>
               </button>

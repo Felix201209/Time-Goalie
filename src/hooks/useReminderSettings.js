@@ -46,8 +46,10 @@ export function useReminderSettings(onToast) {
     try {
       const payload = await testReminder(channel);
       onToast?.(payload.channel === "bark" ? "Bark 测试已发出，请看手机" : "测试提醒已发送");
+      return payload;
     } catch (error) {
       onToast?.(error.message || "测试提醒失败，请检查配置");
+      return null;
     }
   }
 
