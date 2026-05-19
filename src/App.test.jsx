@@ -10,6 +10,7 @@ describe("App shell", () => {
     expect(html).toContain("本周守门");
     expect(html).toContain("一周复盘");
     expect(html).toContain("接下来");
+    expect(html).toContain("今日收口");
     expect(html).toContain("今日目标");
     expect(html).toContain("AI 收件箱");
     expect(html).toContain("万能记录");

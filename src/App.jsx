@@ -224,6 +224,27 @@ function buildGuardLedger(plan, todayKey, now) {
   };
 }
 
+function buildDailyCloseout(blocks, selectedDate, todayKey, stats) {
+  const actionable = normalizeBlocks(blocks).filter((block) => isValidTimeRange(block.start, block.end));
+  const unfinished = actionable.filter((block) => block.status !== "done");
+  const skipped = actionable.filter((block) => block.status === "skipped").length;
+  const label = selectedDate === todayKey ? "今日收口" : "当日收口";
+  const suggestion =
+    unfinished.length > 0
+      ? `承接 ${unfinished.length} 个未完成事项`
+      : stats.doneBlocks > 0
+        ? "节奏已闭合，给明天留第一块"
+        : "先写一个最小时间块，再收口";
+  return {
+    label,
+    unfinishedCount: unfinished.length,
+    skipped,
+    doneLabel: `${stats.doneBlocks}/${stats.totalBlocks}`,
+    suggestion,
+    actionLabel: unfinished.length > 0 ? "承接明天" : "明日第一块",
+  };
+}
+
 function App() {
   const [plan, setPlan] = useState(() => applyDateFromURL(loadPlan()));
   const [form, setForm] = useState(emptyForm);
@@ -297,6 +318,10 @@ function App() {
   const weekDates = useMemo(() => getWeekDates(plan.selectedDate), [plan.selectedDate]);
   const weekReview = useMemo(() => buildWeekReview(plan, weekDates), [plan, weekDates]);
   const guardLedger = useMemo(() => buildGuardLedger(plan, todayKey, now), [plan, todayKey, now]);
+  const dailyCloseout = useMemo(
+    () => buildDailyCloseout(blocks, plan.selectedDate, todayKey, stats),
+    [blocks, plan.selectedDate, todayKey, stats],
+  );
   const visibleTemplates = templatesExpanded
     ? CLOSED_LOOP_TEMPLATES
     : CLOSED_LOOP_TEMPLATES.filter((template) =>
@@ -2376,6 +2401,24 @@ function App() {
                 </DragOverlay>
               </DndContext>
             )}
+          </div>
+          <div className="daily-closeout" aria-label="每日收口">
+            <span>{dailyCloseout.label}</span>
+            <strong>{dailyCloseout.suggestion}</strong>
+            <small>
+              三分钟复盘 · 完成 {dailyCloseout.doneLabel}
+              {dailyCloseout.skipped ? ` · 跳过 ${dailyCloseout.skipped}` : ""}
+            </small>
+            <button
+              className={
+                dailyCloseout.unfinishedCount ? "ghost-button hot-action" : "ghost-button dimmed-action"
+              }
+              type="button"
+              onClick={carryOverTomorrow}
+            >
+              <CalendarPlus size={15} />
+              <span>{dailyCloseout.actionLabel}</span>
+            </button>
           </div>
         </section>
       </section>
