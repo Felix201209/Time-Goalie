@@ -8,6 +8,7 @@ describe("App shell", () => {
 
     expect(html).toContain("Time Goalie");
     expect(html).toContain("本周守门");
+    expect(html).toContain("一周横览");
     expect(html).toContain("一周复盘");
     expect(html).toContain("接下来");
     expect(html).toContain("今日收口");

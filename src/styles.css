@@ -475,6 +475,10 @@ button {
   box-shadow: var(--shadow-glass);
 }
 
+.week-board .week-horizon {
+  grid-column: 1 / -1;
+}
+
 .week-board-copy {
   display: grid;
   align-content: center;
@@ -754,6 +758,148 @@ button {
 
 .week-day.selected .week-type-dots i {
   background: rgba(255, 255, 255, 0.82);
+}
+
+.week-horizon {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.week-horizon-day {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.54) inset;
+}
+
+.week-horizon-day.selected {
+  border-color: rgba(45, 142, 255, 0.34);
+  background:
+    linear-gradient(145deg, rgba(242, 248, 255, 0.76), rgba(255, 255, 255, 0.36)), rgba(255, 255, 255, 0.38);
+}
+
+.week-horizon-day.today:not(.selected) {
+  border-color: rgba(36, 196, 126, 0.28);
+}
+
+.week-horizon-day > button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 6px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.week-horizon-day > button span,
+.week-horizon-day > button small {
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.week-horizon-day > button strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.week-horizon-day > button small {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-horizon-list {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.week-horizon-list button {
+  display: grid;
+  grid-template-columns: 5px auto minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  min-height: 24px;
+  padding: 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  border-radius: 10px;
+  color: var(--soft);
+  background: rgba(255, 255, 255, 0.36);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.week-horizon-list button:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.week-horizon-list button.done {
+  opacity: 0.58;
+}
+
+.week-horizon-list i {
+  width: 5px;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.week-horizon-list i.deep {
+  background: #139ef7;
+}
+
+.week-horizon-list i.ship {
+  background: #24c47e;
+}
+
+.week-horizon-list i.review {
+  background: #8b5cf6;
+}
+
+.week-horizon-list i.admin {
+  background: #7e92a4;
+}
+
+.week-horizon-list span,
+.week-horizon-list strong,
+.week-horizon-list em,
+.week-horizon-empty {
+  min-width: 0;
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.week-horizon-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-horizon-list em,
+.week-horizon-empty {
+  display: block;
+  padding: 2px 1px;
+  font-style: normal;
 }
 
 .week-review {
@@ -3136,6 +3282,8 @@ textarea:focus {
 
 .focus-mode .week-board,
 .focus-mode .week-board-copy,
+.focus-mode .week-horizon-day,
+.focus-mode .week-horizon-list button,
 .focus-mode .week-day,
 .focus-mode .week-review,
 .focus-mode .week-review-copy,
@@ -3360,6 +3508,18 @@ textarea:focus {
     max-width: 100%;
   }
 
+  .week-horizon {
+    grid-template-columns: repeat(7, minmax(132px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .week-horizon::-webkit-scrollbar {
+    display: none;
+  }
+
   .daily-closeout {
     grid-template-columns: 1fr;
   }
@@ -3477,6 +3637,10 @@ textarea:focus {
 
   .reminder-health {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .week-horizon {
+    grid-template-columns: repeat(7, minmax(118px, 1fr));
   }
 
   .reminder-receipt {

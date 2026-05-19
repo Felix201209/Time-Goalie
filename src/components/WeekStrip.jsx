@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { addDaysISO, todayISO } from "../storage.js";
-import { getPlanStats, normalizeBlocks } from "../utils.js";
+import { formatMinutes, getPlanStats, isValidTimeRange, normalizeBlocks, toMinutes } from "../utils.js";
 
 const TYPE_DOTS = ["deep", "ship", "review", "admin"];
 
@@ -40,6 +40,25 @@ export function WeekStrip({
     const completion = plannedMinutes ? Math.round((doneMinutes / plannedMinutes) * 100) : 0;
     return { plannedMinutes, blocks, completion };
   }, [days, weekDays]);
+  const weekHorizon = useMemo(
+    () =>
+      weekDays.map((date) => {
+        const blocks = normalizeBlocks(days?.[date]?.blocks || []);
+        const timedBlocks = blocks
+          .filter((block) => isValidTimeRange(block.start, block.end))
+          .sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+        const stats = getPlanStats(timedBlocks);
+        const unfinished = timedBlocks.filter((block) => block.status !== "done").length;
+        return {
+          date,
+          blocks: timedBlocks,
+          stats,
+          unfinished,
+          loadLabel: stats.plannedMinutes ? formatMinutes(stats.plannedMinutes) : "空档",
+        };
+      }),
+    [days, weekDays],
+  );
 
   return (
     <section className="week-board" aria-label="一周规划总览">
@@ -139,6 +158,52 @@ export function WeekStrip({
           );
         })}
       </nav>
+      <div className="week-horizon" aria-label="一周横览">
+        {weekHorizon.map((day) => {
+          const isSelected = day.date === selectedDate;
+          const isToday = day.date === todayKey;
+          return (
+            <article
+              key={day.date}
+              className={[
+                "week-horizon-day",
+                isSelected ? "selected" : "",
+                isToday ? "today" : "",
+                day.unfinished ? "has-open" : "",
+              ].join(" ")}
+            >
+              <button type="button" onClick={() => onSelect(day.date)} aria-label={`查看 ${day.date} 的规划`}>
+                <span>{weekdayLabel(day.date)}</span>
+                <strong>{day.date.slice(5)}</strong>
+                <small>
+                  {day.loadLabel}
+                  {day.unfinished ? ` · ${day.unfinished} 待守` : ""}
+                </small>
+              </button>
+              <div className="week-horizon-list">
+                {day.blocks.slice(0, 3).map((block) => {
+                  const typeClass = block.type && TYPE_DOTS.includes(block.type) ? block.type : "admin";
+                  return (
+                    <button
+                      key={block.id}
+                      className={block.status === "done" ? "done" : ""}
+                      type="button"
+                      onClick={() => onSelect(day.date)}
+                      title={`${block.start}-${block.end} ${block.title}`}
+                    >
+                      <i className={typeClass} aria-hidden="true" />
+                      <span>{block.start}</span>
+                      <strong>{block.title || "未命名"}</strong>
+                    </button>
+                  );
+                })}
+                {day.blocks.length > 3 && <em>+{day.blocks.length - 3} 个</em>}
+                {!day.blocks.length && <span className="week-horizon-empty">留给临场</span>}
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

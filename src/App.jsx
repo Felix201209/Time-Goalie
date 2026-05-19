@@ -2604,7 +2604,7 @@ function App() {
             </div>
 
             <p className="setup-note">
-              保存后会写入 <code>.env.local</code>，并同步到当前后端进程；之后主页面不再显示密钥表单。
+              保存后会通过本地后端写入 <code>.env.local</code>，并同步到当前进程；之后主页面不再显示密钥表单。
             </p>
 
             <div className="setup-actions">
