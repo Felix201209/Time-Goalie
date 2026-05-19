@@ -226,7 +226,7 @@ function buildGuardLedger(plan, todayKey, now) {
 
 function buildDailyCloseout(blocks, selectedDate, todayKey, stats) {
   const actionable = normalizeBlocks(blocks).filter((block) => isValidTimeRange(block.start, block.end));
-  const unfinished = actionable.filter((block) => block.status !== "done");
+  const unfinished = actionable.filter((block) => block.status !== "done" && block.status !== "skipped");
   const skipped = actionable.filter((block) => block.status === "skipped").length;
   const label = selectedDate === todayKey ? "今日收口" : "当日收口";
   const suggestion =
@@ -1340,14 +1340,20 @@ function App() {
 
   function carryOverTomorrow() {
     const unfinished = blocks.filter(
-      (block) => block.status !== "done" && isValidTimeRange(block.start, block.end),
+      (block) =>
+        block.status !== "done" && block.status !== "skipped" && isValidTimeRange(block.start, block.end),
     );
+    const targetDate = addDaysISO(plan.selectedDate, 1);
     if (unfinished.length === 0) {
       setCloseoutResult(null);
-      notify("今天没有需要带到明天的任务");
+      selectDate(targetDate);
+      window.requestAnimationFrame(() => {
+        blockTitleRef.current?.focus();
+        blockTitleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      notify("已切到明天，写下第一块");
       return;
     }
-    const targetDate = addDaysISO(plan.selectedDate, 1);
     setPlan((current) => {
       const targetDay = getDay(current, targetDate);
       const carried = unfinished.map((block, index) => ({
