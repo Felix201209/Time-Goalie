@@ -1212,6 +1212,7 @@ button {
 
 .reminder-panel-head,
 .reminder-panel-actions,
+.reminder-health,
 .reminder-panel-grid {
   display: grid;
   gap: 10px;
@@ -1225,6 +1226,49 @@ button {
 .reminder-panel-actions {
   grid-template-columns: repeat(2, minmax(0, max-content));
   justify-content: flex-start;
+}
+
+.reminder-health {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reminder-health span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.34);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.48) inset;
+}
+
+.reminder-health .ok {
+  border-color: rgba(36, 196, 126, 0.2);
+}
+
+.reminder-health .warn {
+  border-color: rgba(226, 88, 77, 0.25);
+  background: rgba(226, 88, 77, 0.08);
+}
+
+.reminder-health small {
+  color: var(--soft);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.reminder-health strong {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reminder-health .warn strong {
+  color: var(--danger);
 }
 
 .reminder-panel-head > div {
@@ -3236,6 +3280,10 @@ textarea:focus {
 
   .reminder-panel-actions {
     grid-template-columns: 1fr;
+  }
+
+  .reminder-health {
+    grid-template-columns: 1fr 1fr;
   }
 
   .capture-bar input {

@@ -93,6 +93,36 @@ export function usePlanSync(plan, onToast) {
     return `${time} · ${status.nextReminder.title || "Time Goalie"}`;
   }, [status]);
 
+  const healthChecks = useMemo(
+    () => [
+      {
+        id: "backend",
+        label: "后端",
+        state: status.online ? "ok" : "warn",
+        detail: status.online ? "在线同步" : "未连接",
+      },
+      {
+        id: "bark",
+        label: "Bark",
+        state: status.bark?.enabled && status.bark?.configured ? "ok" : "warn",
+        detail: status.bark?.enabled && status.bark?.configured ? "手机可达" : "未启用",
+      },
+      {
+        id: "queue",
+        label: "队列",
+        state: status.nextReminder || status.pending > 0 ? "ok" : "idle",
+        detail: status.nextReminder ? "已排下一条" : "暂无待发",
+      },
+      {
+        id: "failures",
+        label: "失败",
+        state: status.failed > 0 ? "warn" : "ok",
+        detail: status.failed > 0 ? `${status.failed} 条待处理` : "干净",
+      },
+    ],
+    [status],
+  );
+
   async function downloadIcs() {
     try {
       const blob = await exportIcs(plan, plan.selectedDate);
@@ -114,7 +144,7 @@ export function usePlanSync(plan, onToast) {
     }
   }
 
-  return { status, summary, barkSummary, nextReminderLabel, downloadIcs, recoverQueue };
+  return { status, summary, barkSummary, nextReminderLabel, healthChecks, downloadIcs, recoverQueue };
 }
 
 function briefFromReminders(reminders) {

@@ -1875,6 +1875,14 @@ function App() {
                   <span>清理过期 {planSync.status.stalePending || ""}</span>
                 </button>
               </div>
+              <div className="reminder-health" aria-label="提醒健康检查">
+                {planSync.healthChecks.map((check) => (
+                  <span key={check.id} className={check.state}>
+                    <small>{check.label}</small>
+                    <strong>{check.detail}</strong>
+                  </span>
+                ))}
+              </div>
               <div className="reminder-panel-grid">
                 <div>
                   <span className="reminder-kicker">接下来</span>
