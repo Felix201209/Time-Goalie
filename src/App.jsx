@@ -154,6 +154,44 @@ function reminderKindLabel(kind) {
   return "提醒";
 }
 
+function buildWeekReview(plan, weekDates) {
+  const dayReviews = weekDates.map((date) => {
+    const blocks = normalizeBlocks(getDay(plan, date).blocks);
+    const stats = getPlanStats(blocks);
+    const unfinished = blocks.filter(
+      (block) => block.status !== "done" && isValidTimeRange(block.start, block.end),
+    );
+    return { date, blocks, stats, unfinished };
+  });
+  const plannedMinutes = dayReviews.reduce((sum, item) => sum + item.stats.plannedMinutes, 0);
+  const doneMinutes = dayReviews.reduce((sum, item) => sum + item.stats.doneMinutes, 0);
+  const completion = plannedMinutes ? Math.round((doneMinutes / plannedMinutes) * 100) : 0;
+  const unfinishedCount = dayReviews.reduce((sum, item) => sum + item.unfinished.length, 0);
+  const overloadedDays = dayReviews.filter((item) => item.stats.plannedMinutes > 6 * 60).length;
+  const busiest = dayReviews.reduce((best, item) =>
+    item.stats.plannedMinutes > (best?.stats.plannedMinutes || 0) ? item : best,
+  );
+  const suggestion =
+    unfinishedCount > 0
+      ? `下周先承接 ${unfinishedCount} 个未完成事项`
+      : overloadedDays > 0
+        ? "下周先均衡过载日，避免连续硬扛"
+        : completion >= 80
+          ? "节奏不错，下周可以保留相同结构"
+          : "先安排 1 个最重要时间块，别让计划空转";
+  return {
+    plannedLabel: formatMinutes(plannedMinutes),
+    completion,
+    unfinishedCount,
+    overloadedDays,
+    busiestDate: busiest?.date || weekDates[0],
+    busiestLabel: busiest?.stats.plannedMinutes
+      ? `${busiest.date.slice(5)} · ${formatMinutes(busiest.stats.plannedMinutes)}`
+      : "暂无",
+    suggestion,
+  };
+}
+
 function App() {
   const [plan, setPlan] = useState(() => applyDateFromURL(loadPlan()));
   const [form, setForm] = useState(emptyForm);
@@ -225,6 +263,7 @@ function App() {
     : 9 * 60;
   const completion = stats.plannedMinutes ? Math.round((stats.doneMinutes / stats.plannedMinutes) * 100) : 0;
   const weekDates = useMemo(() => getWeekDates(plan.selectedDate), [plan.selectedDate]);
+  const weekReview = useMemo(() => buildWeekReview(plan, weekDates), [plan, weekDates]);
   const visibleTemplates = templatesExpanded
     ? CLOSED_LOOP_TEMPLATES
     : CLOSED_LOOP_TEMPLATES.filter((template) =>
@@ -1606,6 +1645,31 @@ function App() {
         missedCount={weekMissedCount}
         overloadedCount={overloadedWeekDays}
       />
+
+      <section className="week-review" aria-label="一周复盘摘要">
+        <div className="week-review-copy">
+          <span>一周复盘</span>
+          <strong>{weekReview.suggestion}</strong>
+        </div>
+        <div className="week-review-metrics" aria-label="本周关键指标">
+          <span>
+            <small>规划</small>
+            <strong>{weekReview.plannedLabel}</strong>
+          </span>
+          <span>
+            <small>完成</small>
+            <strong>{weekReview.completion}%</strong>
+          </span>
+          <span className={weekReview.unfinishedCount ? "warn" : ""}>
+            <small>未完成</small>
+            <strong>{weekReview.unfinishedCount}</strong>
+          </span>
+          <span className={weekReview.overloadedDays ? "warn" : ""}>
+            <small>峰值日</small>
+            <strong>{weekReview.busiestLabel}</strong>
+          </span>
+        </div>
+      </section>
 
       <section className="command-center" aria-label="闭环工作台">
         <div className="command-panel ai-panel">

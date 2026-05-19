@@ -756,6 +756,77 @@ button {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.week-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px;
+  align-items: stretch;
+  width: min(1200px, 100%);
+  margin: 10px auto 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.24);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-glass);
+}
+
+.week-review-copy,
+.week-review-metrics span {
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.56) inset;
+}
+
+.week-review-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.week-review-copy span,
+.week-review-metrics small {
+  color: var(--soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.week-review-copy strong {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.week-review-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.week-review-metrics span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.week-review-metrics strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.week-review-metrics .warn strong {
+  color: #935013;
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;
@@ -2845,6 +2916,9 @@ textarea:focus {
 .focus-mode .week-board,
 .focus-mode .week-board-copy,
 .focus-mode .week-day,
+.focus-mode .week-review,
+.focus-mode .week-review-copy,
+.focus-mode .week-review-metrics span,
 .focus-mode .capture-preview {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.1);
@@ -3046,6 +3120,15 @@ textarea:focus {
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 8px;
+  }
+
+  .week-review {
+    grid-template-columns: 1fr;
+    padding: 8px;
+  }
+
+  .week-review-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .week-board-copy {
@@ -3273,6 +3356,10 @@ textarea:focus {
   .week-board-copy {
     display: grid;
     grid-template-columns: auto auto;
+  }
+
+  .week-review-metrics {
+    grid-template-columns: 1fr 1fr;
   }
 
   .week-board-copy small {
