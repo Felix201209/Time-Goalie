@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   addDaysISO,
   createEmptyDay,
+  createSeedDay,
   createSeedPlan,
   exportFileName,
   exportPlan,
@@ -905,7 +906,11 @@ describe("time utilities", () => {
 
     expect(getDateFromURL()).toBe("2026-05-20");
 
-    const plan = applyDateFromURL(createSeedPlan("2026-05-15"));
+    const plan = applyDateFromURL({
+      ...createSeedPlan(),
+      selectedDate: "2026-05-15",
+      days: { "2026-05-15": createSeedDay() },
+    });
     expect(plan.selectedDate).toBe("2026-05-20");
     expect(plan.days["2026-05-20"]).toEqual(createEmptyDay());
 

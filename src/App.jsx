@@ -132,6 +132,23 @@ function inferCaptureType(text) {
   return "admin";
 }
 
+function getWeekDates(selectedDate) {
+  const date = new Date(selectedDate);
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  return Array.from({ length: 7 }, (_, index) => {
+    const item = new Date(date);
+    item.setDate(date.getDate() + mondayOffset + index);
+    return todayISO(item);
+  });
+}
+
+function appendRescueNote(note, label) {
+  const suffix = `本周${label}`;
+  if (String(note || "").includes(suffix)) return note || "";
+  return [note, suffix].filter(Boolean).join(" · ").slice(0, MAX_NOTE_LENGTH);
+}
+
 function App() {
   const [plan, setPlan] = useState(() => applyDateFromURL(loadPlan()));
   const [form, setForm] = useState(emptyForm);
@@ -200,6 +217,7 @@ function App() {
     ? roundUpToStep(now.getHours() * 60 + now.getMinutes(), 15)
     : 9 * 60;
   const completion = stats.plannedMinutes ? Math.round((stats.doneMinutes / stats.plannedMinutes) * 100) : 0;
+  const weekDates = useMemo(() => getWeekDates(plan.selectedDate), [plan.selectedDate]);
 
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 140);
 
@@ -1199,6 +1217,157 @@ function App() {
     notify(`已把 ${unfinished.length} 个未完成任务带到明天`);
   }
 
+  function rescueWeekBlocks() {
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const targetDates = weekDates.filter((date) => date >= todayKey);
+    const missed = [];
+
+    for (const date of weekDates) {
+      const day = getDay(plan, date);
+      for (const block of day.blocks) {
+        const isMissed =
+          block.status === "planned" &&
+          isValidTimeRange(block.start, block.end) &&
+          (date < todayKey || (date === todayKey && toMinutes(block.end) < nowMinutes));
+        if (isMissed) missed.push({ date, block });
+      }
+    }
+
+    if (missed.length === 0) {
+      notify("本周没有需要救援的错过任务");
+      return;
+    }
+
+    setPlan((current) => {
+      const nextDays = { ...current.days };
+      for (const date of weekDates) {
+        const day = getDay(current, date);
+        nextDays[date] = {
+          ...day,
+          blocks: day.blocks.filter(
+            (block) => !missed.some((item) => item.date === date && item.block.id === block.id),
+          ),
+        };
+      }
+
+      let moved = 0;
+      for (const item of missed) {
+        const duration = Math.max(30, toMinutes(item.block.end) - toMinutes(item.block.start));
+        let placed = false;
+        for (const targetDate of targetDates) {
+          const targetDay = nextDays[targetDate] || getDay(current, targetDate);
+          const preferred =
+            targetDate === todayKey
+              ? roundUpToStep(nowMinutes, 15)
+              : Math.max(9 * 60, toMinutes(item.block.start));
+          const slot = findOpenSlot(targetDay.blocks, preferred, duration, {
+            allowPastFallback: targetDate !== todayKey,
+          });
+          if (!slot) continue;
+          nextDays[targetDate] = {
+            ...targetDay,
+            goal: targetDay.goal || `本周救援：承接 ${item.date} 错过事项`,
+            blocks: [
+              ...targetDay.blocks,
+              {
+                ...item.block,
+                ...slot,
+                note: appendRescueNote(item.block.note, `救援自 ${item.date}`),
+              },
+            ],
+          };
+          moved += 1;
+          placed = true;
+          break;
+        }
+
+        if (!placed) {
+          const sourceDay = nextDays[item.date] || getDay(current, item.date);
+          nextDays[item.date] = { ...sourceDay, blocks: [...sourceDay.blocks, item.block] };
+        }
+      }
+
+      window.requestAnimationFrame(() =>
+        notify(moved ? `本周救援已重排 ${moved} 个任务` : "本周剩余空档不够"),
+      );
+      return { ...current, days: nextDays };
+    });
+  }
+
+  function balanceWeekLoad() {
+    const LOAD_LIMIT = 6 * 60;
+    const TARGET_LIMIT = 5 * 60;
+    const weekStats = new Map(
+      weekDates.map((date) => [
+        date,
+        getPlanStats(normalizeBlocks(getDay(plan, date).blocks)).plannedMinutes,
+      ]),
+    );
+    const overloaded = weekDates.filter((date) => (weekStats.get(date) || 0) > LOAD_LIMIT);
+    if (overloaded.length === 0) {
+      notify("本周负载已经比较均衡");
+      return;
+    }
+
+    setPlan((current) => {
+      const nextDays = Object.fromEntries(weekDates.map((date) => [date, { ...getDay(current, date) }]));
+      for (const date of weekDates) nextDays[date].blocks = [...nextDays[date].blocks];
+      const minutesByDate = new Map(
+        weekDates.map((date) => [date, getPlanStats(normalizeBlocks(nextDays[date].blocks)).plannedMinutes]),
+      );
+      let moved = 0;
+
+      for (const sourceDate of overloaded) {
+        const movable = normalizeBlocks(nextDays[sourceDate].blocks)
+          .filter((block) => block.status === "planned" && isValidTimeRange(block.start, block.end))
+          .reverse();
+        for (const block of movable) {
+          if ((minutesByDate.get(sourceDate) || 0) <= LOAD_LIMIT) break;
+          const duration = Math.max(30, toMinutes(block.end) - toMinutes(block.start));
+          const candidates = weekDates.filter(
+            (date) =>
+              date > sourceDate &&
+              date >= todayKey &&
+              (minutesByDate.get(date) || 0) + duration <= TARGET_LIMIT,
+          );
+          for (const targetDate of candidates) {
+            const slot = findOpenSlot(
+              nextDays[targetDate].blocks,
+              Math.max(9 * 60, toMinutes(block.start)),
+              duration,
+              {
+                allowPastFallback: targetDate !== todayKey,
+              },
+            );
+            if (!slot) continue;
+            nextDays[sourceDate].blocks = nextDays[sourceDate].blocks.filter((item) => item.id !== block.id);
+            nextDays[targetDate] = {
+              ...nextDays[targetDate],
+              goal: nextDays[targetDate].goal || `本周均衡：承接 ${sourceDate} 过载任务`,
+              blocks: [
+                ...nextDays[targetDate].blocks,
+                {
+                  ...block,
+                  ...slot,
+                  note: appendRescueNote(block.note, `均衡自 ${sourceDate}`),
+                },
+              ],
+            };
+            minutesByDate.set(sourceDate, (minutesByDate.get(sourceDate) || 0) - duration);
+            minutesByDate.set(targetDate, (minutesByDate.get(targetDate) || 0) + duration);
+            moved += 1;
+            break;
+          }
+        }
+      }
+
+      window.requestAnimationFrame(() =>
+        notify(moved ? `已均衡 ${moved} 个本周任务` : "没有找到合适的后续空档"),
+      );
+      return { ...current, days: { ...current.days, ...nextDays } };
+    });
+  }
+
   const firstValidBlock = blocks.find((block) => isValidTimeRange(block.start, block.end));
   const statusCopy = overlaps.size
     ? "有时间冲突"
@@ -1234,6 +1403,21 @@ function App() {
       block.status === "planned" &&
       isValidTimeRange(block.start, block.end) &&
       toMinutes(block.end) < now.getHours() * 60 + now.getMinutes(),
+  ).length;
+  const weekMissedCount = weekDates.reduce((count, date) => {
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return (
+      count +
+      getDay(plan, date).blocks.filter(
+        (block) =>
+          block.status === "planned" &&
+          isValidTimeRange(block.start, block.end) &&
+          (date < todayKey || (date === todayKey && toMinutes(block.end) < nowMinutes)),
+      ).length
+    );
+  }, 0);
+  const overloadedWeekDays = weekDates.filter(
+    (date) => getPlanStats(normalizeBlocks(getDay(plan, date).blocks)).plannedMinutes > 6 * 60,
   ).length;
 
   return (
@@ -1400,6 +1584,14 @@ function App() {
               <RefreshCw size={16} />
               <span>救援 {missedCount || ""}</span>
             </button>
+            <button className="ghost-button" type="button" onClick={rescueWeekBlocks}>
+              <RefreshCw size={16} />
+              <span>本周救援 {weekMissedCount || ""}</span>
+            </button>
+            <button className="ghost-button" type="button" onClick={balanceWeekLoad}>
+              <ShieldCheck size={16} />
+              <span>均衡周 {overloadedWeekDays || ""}</span>
+            </button>
             <button className="ghost-button" type="button" onClick={carryOverTomorrow}>
               <CalendarPlus size={16} />
               <span>明日</span>
@@ -1410,6 +1602,12 @@ function App() {
               {planSync.summary}
             </span>
             <span className="status-pill">{firstRunSetup.summary}</span>
+            <span
+              className={planSync.status.bark?.configured ? "status-pill online" : "status-pill"}
+              title={planSync.status.bark?.last?.message || "Bark 手机提醒状态"}
+            >
+              {planSync.barkSummary}
+            </span>
             <button className="ghost-button" type="button" onClick={() => firstRunSetup.setOpen(true)}>
               <Settings2 size={16} />
               <span>配置</span>

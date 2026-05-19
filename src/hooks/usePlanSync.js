@@ -9,6 +9,7 @@ export function usePlanSync(plan, onToast) {
     delivered: 0,
     failed: 0,
     subscriptions: 0,
+    bark: null,
     lastDeliveries: [],
   });
 
@@ -59,6 +60,14 @@ export function usePlanSync(plan, onToast) {
     return `${status.pending} 待发 · ${status.delivered} 已送达`;
   }, [status]);
 
+  const barkSummary = useMemo(() => {
+    if (!status.online) return "Bark 未连接";
+    if (!status.bark?.configured) return "Bark 未配置";
+    if (!status.bark?.enabled) return "Bark 已保存 · 未启用";
+    if (status.bark?.recentFailures) return `Bark 异常 ${status.bark.recentFailures}`;
+    return status.bark?.level ? `Bark ${status.bark.level}` : "Bark 守门中";
+  }, [status]);
+
   async function downloadIcs() {
     try {
       const blob = await exportIcs(plan, plan.selectedDate);
@@ -69,5 +78,5 @@ export function usePlanSync(plan, onToast) {
     }
   }
 
-  return { status, summary, downloadIcs };
+  return { status, summary, barkSummary, downloadIcs };
 }
