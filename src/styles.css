@@ -827,6 +827,58 @@ button {
   color: #935013;
 }
 
+.guard-ticker {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+  color: var(--soft);
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.guard-ticker > span {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.guard-ticker button,
+.guard-ticker strong,
+.guard-ticker em {
+  min-width: 0;
+  border: 0;
+  color: var(--soft);
+  background: transparent;
+  font: inherit;
+}
+
+.guard-ticker button {
+  max-width: 30%;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guard-ticker button:hover {
+  color: var(--ink);
+}
+
+.guard-ticker strong {
+  color: var(--soft);
+}
+
+.guard-ticker em {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-style: normal;
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;
@@ -3173,6 +3225,14 @@ textarea:focus {
 
   .week-review-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guard-ticker {
+    flex-wrap: wrap;
+  }
+
+  .guard-ticker button {
+    max-width: 100%;
   }
 
   .week-board-copy {

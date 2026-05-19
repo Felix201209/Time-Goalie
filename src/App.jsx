@@ -192,6 +192,38 @@ function buildWeekReview(plan, weekDates) {
   };
 }
 
+function buildGuardLedger(plan, todayKey, now) {
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const dates = Array.from({ length: 7 }, (_, index) => addDaysISO(todayKey, index));
+  const entries = dates.flatMap((date) =>
+    normalizeBlocks(getDay(plan, date).blocks)
+      .filter((block) => block.status !== "done" && isValidTimeRange(block.start, block.end))
+      .map((block) => ({
+        ...block,
+        date,
+        isToday: date === todayKey,
+        isOverdue: date === todayKey && toMinutes(block.end) < nowMinutes,
+      })),
+  );
+  const upcoming = entries.filter((entry) => !entry.isOverdue);
+  const todayCount = entries.filter((entry) => entry.isToday).length;
+  const overdueCount = entries.filter((entry) => entry.isOverdue).length;
+  const coverage = dates.filter((date) => entries.some((entry) => entry.date === date)).length;
+  const totalMinutes = entries.reduce((sum, entry) => sum + toMinutes(entry.end) - toMinutes(entry.start), 0);
+  const nextEntry = upcoming[0] || null;
+
+  return {
+    entries,
+    cards: upcoming.slice(0, 6),
+    coverage,
+    nextEntry,
+    overdueCount,
+    todayCount,
+    total: entries.length,
+    totalLabel: formatMinutes(totalMinutes),
+  };
+}
+
 function App() {
   const [plan, setPlan] = useState(() => applyDateFromURL(loadPlan()));
   const [form, setForm] = useState(emptyForm);
@@ -264,6 +296,7 @@ function App() {
   const completion = stats.plannedMinutes ? Math.round((stats.doneMinutes / stats.plannedMinutes) * 100) : 0;
   const weekDates = useMemo(() => getWeekDates(plan.selectedDate), [plan.selectedDate]);
   const weekReview = useMemo(() => buildWeekReview(plan, weekDates), [plan, weekDates]);
+  const guardLedger = useMemo(() => buildGuardLedger(plan, todayKey, now), [plan, todayKey, now]);
   const visibleTemplates = templatesExpanded
     ? CLOSED_LOOP_TEMPLATES
     : CLOSED_LOOP_TEMPLATES.filter((template) =>
@@ -528,6 +561,15 @@ function App() {
     setForm(composerFormForSlot(slot, selectedDate === todayKey));
     setFormErrors({});
     setSelectedBlockIds(new Set());
+  }
+
+  function openLedgerItem(entry) {
+    selectDate(entry.date);
+    setSearchQuery("");
+    notify(`已跳到 ${entry.date} ${entry.start}`);
+    window.requestAnimationFrame(() =>
+      timelinePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
   }
 
   function shiftSelectedDate(offset) {
@@ -1668,6 +1710,21 @@ function App() {
             <small>峰值日</small>
             <strong>{weekReview.busiestLabel}</strong>
           </span>
+        </div>
+        <div className="guard-ticker" aria-label="接下来三件守门事项">
+          <span>接下来</span>
+          {guardLedger.cards.length ? (
+            <>
+              {guardLedger.cards.slice(0, 3).map((entry) => (
+                <button key={`${entry.date}-${entry.id}`} type="button" onClick={() => openLedgerItem(entry)}>
+                  {entry.isToday ? "今天" : entry.date.slice(5)} {entry.start} {entry.title}
+                </button>
+              ))}
+              {guardLedger.cards.length > 3 && <em>+{guardLedger.cards.length - 3}</em>}
+            </>
+          ) : (
+            <strong>未来 7 天暂无待守事项</strong>
+          )}
         </div>
       </section>
 
