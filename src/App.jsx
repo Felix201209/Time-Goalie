@@ -1397,6 +1397,66 @@ function App() {
     });
   }
 
+  function carryOverWeek() {
+    const unfinished = [];
+    for (const date of weekDates) {
+      for (const block of normalizeBlocks(getDay(plan, date).blocks)) {
+        if (block.status !== "done" && isValidTimeRange(block.start, block.end)) {
+          unfinished.push({ date, block });
+        }
+      }
+    }
+
+    if (unfinished.length === 0) {
+      notify("本周没有需要承接的未完成事项");
+      return;
+    }
+
+    const nextWeekDates = weekDates.map((date) => addDaysISO(date, 7));
+    setPlan((current) => {
+      const nextDays = { ...current.days };
+      for (const date of nextWeekDates) {
+        const day = getDay(current, date);
+        nextDays[date] = { ...day, blocks: [...day.blocks] };
+      }
+
+      let moved = 0;
+      for (const item of unfinished) {
+        const duration = Math.max(30, toMinutes(item.block.end) - toMinutes(item.block.start));
+        let placed = false;
+        for (const targetDate of nextWeekDates) {
+          const targetDay = nextDays[targetDate];
+          const preferred = Math.max(9 * 60, toMinutes(item.block.start));
+          const slot = findOpenSlot(targetDay.blocks, preferred, duration, { allowPastFallback: true });
+          if (!slot) continue;
+          nextDays[targetDate] = {
+            ...targetDay,
+            goal: targetDay.goal || `承接 ${weekDates[0]} 周未完成事项`,
+            blocks: [
+              ...targetDay.blocks,
+              {
+                ...item.block,
+                id: makeId(),
+                ...slot,
+                status: "planned",
+                note: appendRescueNote(item.block.note, `承接自 ${item.date}`),
+              },
+            ],
+          };
+          moved += 1;
+          placed = true;
+          break;
+        }
+        if (!placed) break;
+      }
+
+      window.requestAnimationFrame(() =>
+        notify(moved ? `已承接 ${moved} 个事项到下周` : "下周没有足够空档，建议先拆小任务"),
+      );
+      return { ...current, selectedDate: nextWeekDates[0], days: nextDays };
+    });
+  }
+
   const firstValidBlock = blocks.find((block) => isValidTimeRange(block.start, block.end));
   const statusCopy = overlaps.size
     ? "有时间冲突"
@@ -1448,6 +1508,14 @@ function App() {
   const overloadedWeekDays = weekDates.filter(
     (date) => getPlanStats(normalizeBlocks(getDay(plan, date).blocks)).plannedMinutes > 6 * 60,
   ).length;
+  const weekUnfinishedCount = weekDates.reduce(
+    (count, date) =>
+      count +
+      getDay(plan, date).blocks.filter(
+        (block) => block.status !== "done" && isValidTimeRange(block.start, block.end),
+      ).length,
+    0,
+  );
 
   return (
     <main className={plan.focusMode ? "app focus-mode" : "app"}>
@@ -1658,6 +1726,14 @@ function App() {
             <button className="ghost-button" type="button" onClick={carryOverTomorrow}>
               <CalendarPlus size={16} />
               <span>明日</span>
+            </button>
+            <button
+              className={weekUnfinishedCount ? "ghost-button hot-action" : "ghost-button dimmed-action"}
+              type="button"
+              onClick={carryOverWeek}
+            >
+              <CalendarPlus size={16} />
+              <span>下周承接 {weekUnfinishedCount || ""}</span>
             </button>
           </div>
           <div className="setup-strip" aria-label="后台状态">
