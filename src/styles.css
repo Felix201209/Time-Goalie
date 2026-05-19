@@ -917,6 +917,37 @@ button {
   white-space: nowrap;
 }
 
+.closeout-result {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.closeout-result span {
+  color: #087c45;
+}
+
+.closeout-result button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(36, 196, 126, 0.22);
+  border-radius: 999px;
+  color: #087c45;
+  background: rgba(218, 248, 232, 0.52);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.closeout-result button:hover {
+  transform: translateY(-1px);
+  background: rgba(218, 248, 232, 0.76);
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 310px;

@@ -261,6 +261,7 @@ function App() {
   const [templatePending, setTemplatePending] = useState("");
   const [templatesExpanded, setTemplatesExpanded] = useState(false);
   const [reminderPanelOpen, setReminderPanelOpen] = useState(false);
+  const [closeoutResult, setCloseoutResult] = useState(null);
   const [captureText, setCaptureText] = useState("");
   const [capturePreset, setCapturePreset] = useState(CAPTURE_PRESETS[0].id);
   const fileInputRef = useRef(null);
@@ -322,6 +323,7 @@ function App() {
     () => buildDailyCloseout(blocks, plan.selectedDate, todayKey, stats),
     [blocks, plan.selectedDate, todayKey, stats],
   );
+  const visibleCloseoutResult = closeoutResult?.sourceDate === plan.selectedDate ? closeoutResult : null;
   const visibleTemplates = templatesExpanded
     ? CLOSED_LOOP_TEMPLATES
     : CLOSED_LOOP_TEMPLATES.filter((template) =>
@@ -592,6 +594,14 @@ function App() {
     selectDate(entry.date);
     setSearchQuery("");
     notify(`已跳到 ${entry.date} ${entry.start}`);
+    window.requestAnimationFrame(() =>
+      timelinePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  }
+
+  function openCloseoutResult() {
+    if (!visibleCloseoutResult?.targetDate) return;
+    selectDate(visibleCloseoutResult.targetDate);
     window.requestAnimationFrame(() =>
       timelinePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );
@@ -1333,6 +1343,7 @@ function App() {
       (block) => block.status !== "done" && isValidTimeRange(block.start, block.end),
     );
     if (unfinished.length === 0) {
+      setCloseoutResult(null);
       notify("今天没有需要带到明天的任务");
       return;
     }
@@ -1358,6 +1369,7 @@ function App() {
         },
       };
     });
+    setCloseoutResult({ sourceDate: plan.selectedDate, targetDate, count: unfinished.length });
     notify(`已把 ${unfinished.length} 个未完成任务带到明天`);
   }
 
@@ -2419,6 +2431,16 @@ function App() {
               <CalendarPlus size={15} />
               <span>{dailyCloseout.actionLabel}</span>
             </button>
+            {visibleCloseoutResult && (
+              <div className="closeout-result" aria-label="承接结果">
+                <span>
+                  已承接 {visibleCloseoutResult.count} 个到 {visibleCloseoutResult.targetDate.slice(5)}
+                </span>
+                <button type="button" onClick={openCloseoutResult}>
+                  查看
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </section>
