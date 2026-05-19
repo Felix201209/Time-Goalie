@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { addDaysISO, todayISO } from "../storage.js";
 import { getPlanStats, normalizeBlocks } from "../utils.js";
 
+const TYPE_DOTS = ["deep", "ship", "review", "admin"];
+
 function weekdayLabel(iso) {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("zh-CN", { weekday: "short" });
@@ -12,7 +14,14 @@ function dayNumber(iso) {
   return d;
 }
 
-export function WeekStrip({ selectedDate, days, onSelect, todayKey = todayISO() }) {
+export function WeekStrip({
+  selectedDate,
+  days,
+  onSelect,
+  todayKey = todayISO(),
+  missedCount = 0,
+  overloadedCount = 0,
+}) {
   const weekDays = useMemo(() => {
     const date = new Date(selectedDate);
     const day = date.getDay();
@@ -43,6 +52,14 @@ export function WeekStrip({ selectedDate, days, onSelect, todayKey = todayISO() 
           <small>
             {weekSummary.blocks} 块 · 完成 {weekSummary.completion}%
           </small>
+          <div className="week-alerts" aria-label="本周风险">
+            <span className={missedCount ? "warn" : ""}>
+              {missedCount ? `${missedCount} 个待救援` : "无漏项"}
+            </span>
+            <span className={overloadedCount ? "warn" : ""}>
+              {overloadedCount ? `${overloadedCount} 天过载` : "负载稳"}
+            </span>
+          </div>
         </div>
         <div className="week-jump" role="group" aria-label="切换周">
           <button
@@ -67,11 +84,15 @@ export function WeekStrip({ selectedDate, days, onSelect, todayKey = todayISO() 
           const isToday = date === todayKey;
           const dayBlocks = normalizeBlocks(days?.[date]?.blocks || []);
           const stats = getPlanStats(dayBlocks);
+          const typeCounts = new Map(dayBlocks.map((block) => [block.type, 0]));
+          for (const block of dayBlocks) typeCounts.set(block.type, (typeCounts.get(block.type) || 0) + 1);
           const completion = stats.plannedMinutes
             ? Math.round((stats.doneMinutes / stats.plannedMinutes) * 100)
             : 0;
           const loadRatio = Math.min(1, stats.plannedMinutes / 480);
           const hasPlan = dayBlocks.length > 0;
+          const isOverloaded = stats.plannedMinutes > 6 * 60;
+          const hasMissed = date < todayKey && dayBlocks.some((block) => block.status === "planned");
           return (
             <button
               key={date}
@@ -81,6 +102,8 @@ export function WeekStrip({ selectedDate, days, onSelect, todayKey = todayISO() 
                 isSelected ? "selected" : "",
                 isToday ? "today" : "",
                 hasPlan ? "has-plan" : "",
+                isOverloaded ? "overloaded" : "",
+                hasMissed ? "missed" : "",
               ].join(" ")}
               aria-pressed={isSelected}
               aria-label={`${weekdayLabel(date)} ${dayNumber(date)}日${
@@ -98,8 +121,19 @@ export function WeekStrip({ selectedDate, days, onSelect, todayKey = todayISO() 
               <span className="week-load-track" aria-hidden="true">
                 <span className="week-load-fill" style={{ width: `${loadRatio * 100}%` }} />
               </span>
+              <span className="week-type-dots" aria-hidden="true">
+                {TYPE_DOTS.map((type) => (
+                  <i key={type} className={typeCounts.get(type) ? type : "empty"} />
+                ))}
+              </span>
               <span className="week-day-meta" aria-hidden="true">
-                {hasPlan ? `${dayBlocks.length}块 · ${completion}%` : "空档"}
+                {hasMissed
+                  ? "待救援"
+                  : isOverloaded
+                    ? "过载"
+                    : hasPlan
+                      ? `${dayBlocks.length}块 · ${completion}%`
+                      : "空档"}
               </span>
             </button>
           );

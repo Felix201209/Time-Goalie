@@ -504,6 +504,32 @@ button {
   line-height: 1.05;
 }
 
+.week-alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.week-alerts span {
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 999px;
+  color: #166747;
+  background: rgba(64, 213, 147, 0.16);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.week-alerts span.warn {
+  color: #935013;
+  background: rgba(255, 172, 72, 0.2);
+  border-color: rgba(255, 172, 72, 0.34);
+}
+
 .week-jump {
   display: flex;
   gap: 6px;
@@ -582,6 +608,20 @@ button {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.62);
   border-color: rgba(19, 158, 247, 0.28);
+}
+
+.week-day.overloaded:not(.selected) {
+  border-color: rgba(255, 157, 48, 0.48);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.56) inset,
+    0 12px 28px rgba(255, 157, 48, 0.12);
+}
+
+.week-day.missed:not(.selected) {
+  border-color: rgba(226, 88, 77, 0.44);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.56) inset,
+    0 12px 28px rgba(226, 88, 77, 0.12);
 }
 
 .week-day-head,
@@ -669,6 +709,45 @@ button {
 .week-day.selected .week-day-progress span,
 .week-day.selected .week-load-fill {
   background: rgba(255, 255, 255, 0.88);
+}
+
+.week-type-dots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  align-items: center;
+}
+
+.week-type-dots i {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  opacity: 0.95;
+}
+
+.week-type-dots .deep {
+  background: #139ef7;
+}
+
+.week-type-dots .ship {
+  background: #24c47e;
+}
+
+.week-type-dots .review {
+  background: #8b5cf6;
+}
+
+.week-type-dots .admin {
+  background: #7e92a4;
+}
+
+.week-type-dots .empty {
+  background: rgba(126, 146, 164, 0.16);
+}
+
+.week-day.selected .week-type-dots i {
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .hero-grid {
@@ -838,6 +917,21 @@ button {
   padding: 0 10px;
 }
 
+.capture-preview {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.36);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.56) inset;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .capture-bar .primary-button {
   flex: 0 0 auto;
   min-height: 40px;
@@ -886,6 +980,11 @@ button {
   background: rgba(255, 255, 255, 0.58);
 }
 
+.template-chip.more-chip {
+  min-width: 82px;
+  text-align: center;
+}
+
 .template-chip:disabled,
 .primary-button:disabled,
 .ghost-button:disabled {
@@ -897,6 +996,22 @@ button {
 .command-actions {
   align-items: center;
   flex-wrap: wrap;
+}
+
+.dimmed-action {
+  opacity: 0.48;
+}
+
+.dimmed-action:hover {
+  opacity: 0.86;
+}
+
+.hot-action {
+  border-color: rgba(226, 88, 77, 0.24);
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.56) inset,
+    inset 3px 0 0 rgba(226, 88, 77, 0.72);
 }
 
 .command-actions .ghost-button,
@@ -1431,6 +1546,46 @@ button {
   color: var(--soft);
   font-size: 13px;
   font-weight: 700;
+}
+
+.reminder-badge {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid rgba(19, 158, 247, 0.26);
+  border-radius: 999px;
+  color: #0874b8;
+  background: rgba(19, 158, 247, 0.1);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.reminder-badge.failed {
+  color: var(--danger);
+  border-color: rgba(226, 88, 77, 0.28);
+  background: rgba(226, 88, 77, 0.1);
+}
+
+.status-pill.pulsing {
+  animation: statusPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.56) inset,
+      0 0 0 rgba(19, 158, 247, 0);
+  }
+
+  50% {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.56) inset,
+      0 0 0 5px rgba(19, 158, 247, 0.1);
+  }
 }
 
 form {
@@ -2579,7 +2734,8 @@ textarea:focus {
 
 .focus-mode .week-board,
 .focus-mode .week-board-copy,
-.focus-mode .week-day {
+.focus-mode .week-day,
+.focus-mode .capture-preview {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.1);
   color: var(--muted);

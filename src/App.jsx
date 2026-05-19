@@ -37,6 +37,7 @@ import {
   TEMPLATE_PROMPTS,
   createTemplateDraft,
   draftToBlocks,
+  parseCaptureIntent,
 } from "./closedLoop.js";
 import { useAIInbox } from "./hooks/useAIInbox.js";
 import { useDebouncedValue } from "./hooks.js";
@@ -107,24 +108,6 @@ function hasTimeCollision(candidate, blocks) {
   });
 }
 
-function extractTimeFromText(text) {
-  const clock = String(text).match(/\b([01]?\d|2[0-3])[:：]([0-5]\d)\b/);
-  if (clock) return Number(clock[1]) * 60 + Number(clock[2]);
-  const chinese = String(text).match(
-    /(凌晨|早上|上午|中午|下午|晚上|今晚)?\s*(\d{1,2})\s*点\s*(半|[0-5]?\d\s*分?)?/,
-  );
-  if (!chinese) return null;
-  let hour = Number(chinese[2]);
-  const period = chinese[1] || "";
-  if ((period.includes("下午") || period.includes("晚上") || period.includes("今晚")) && hour < 12)
-    hour += 12;
-  if (period.includes("中午") && hour < 11) hour += 12;
-  if (hour > 23) return null;
-  const minuteText = chinese[3] || "";
-  const minute = minuteText.includes("半") ? 30 : Number(minuteText.match(/\d+/)?.[0] || 0);
-  return hour * 60 + Math.min(59, minute);
-}
-
 function inferCaptureType(text) {
   if (/读|书|复习|学习|题|考试|写|创作|项目|代码|论文/.test(text)) return "deep";
   if (/发|交|提交|发布|完成|寄|买|缴|付款|账单/.test(text)) return "ship";
@@ -163,6 +146,7 @@ function App() {
   const [timelineHover, setTimelineHover] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const [templatePending, setTemplatePending] = useState("");
+  const [templatesExpanded, setTemplatesExpanded] = useState(false);
   const [captureText, setCaptureText] = useState("");
   const [capturePreset, setCapturePreset] = useState(CAPTURE_PRESETS[0].id);
   const fileInputRef = useRef(null);
@@ -218,6 +202,24 @@ function App() {
     : 9 * 60;
   const completion = stats.plannedMinutes ? Math.round((stats.doneMinutes / stats.plannedMinutes) * 100) : 0;
   const weekDates = useMemo(() => getWeekDates(plan.selectedDate), [plan.selectedDate]);
+  const visibleTemplates = templatesExpanded
+    ? CLOSED_LOOP_TEMPLATES
+    : CLOSED_LOOP_TEMPLATES.filter((template) =>
+        ["reading", "study", "project", "health", "admin"].includes(template.id),
+      );
+  const capturePresetItem = useMemo(
+    () => CAPTURE_PRESETS.find((item) => item.id === capturePreset) || CAPTURE_PRESETS[0],
+    [capturePreset],
+  );
+  const captureIntent = useMemo(
+    () =>
+      parseCaptureIntent(captureText, {
+        selectedDate: plan.selectedDate,
+        todayKey,
+        preset: capturePresetItem,
+      }),
+    [captureText, plan.selectedDate, todayKey, capturePresetItem],
+  );
 
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 140);
 
@@ -1089,14 +1091,18 @@ function App() {
       notify("先写下要记录或提醒的事");
       return;
     }
-    const preset = CAPTURE_PRESETS.find((item) => item.id === capturePreset) || CAPTURE_PRESETS[0];
-    const explicitTime = extractTimeFromText(title);
-    const targetDate = preset.mode === "tomorrow" ? addDaysISO(plan.selectedDate, 1) : plan.selectedDate;
+    const preset = capturePresetItem;
+    const intent = parseCaptureIntent(title, {
+      selectedDate: plan.selectedDate,
+      todayKey,
+      preset,
+    });
+    const targetDate = intent.targetDate;
     const targetDay = getDay(plan, targetDate);
-    const duration = preset.duration || 25;
+    const duration = intent.duration;
     const selectedNowMinutes = now.getHours() * 60 + now.getMinutes();
     const preferred =
-      explicitTime ??
+      intent.explicitTime ??
       (preset.mode === "offset" && targetDate === todayKey
         ? roundUpToStep(selectedNowMinutes + preset.offset, 15)
         : preset.mode === "time" || preset.mode === "tomorrow"
@@ -1112,7 +1118,7 @@ function App() {
     const block = {
       id: makeId(),
       title: title.slice(0, MAX_TITLE_LENGTH),
-      note: `快速记录 · ${preset.label}${explicitTime != null ? " · 识别到输入里的时间" : ""}`,
+      note: intent.note,
       start: slot.start,
       end: slot.end,
       type: inferCaptureType(title),
@@ -1506,6 +1512,8 @@ function App() {
         days={plan.days}
         onSelect={selectDate}
         todayKey={todayKey}
+        missedCount={weekMissedCount}
+        overloadedCount={overloadedWeekDays}
       />
 
       <section className="command-center" aria-label="闭环工作台">
@@ -1535,7 +1543,7 @@ function App() {
               type="text"
               value={captureText}
               onChange={(event) => setCaptureText(event.target.value)}
-              placeholder="例：20:00 读完第三章 / 明早带作业 / 给老师发邮件"
+              placeholder="例：周五下午3点读书45分钟 / 明早带作业 / 20:00 给老师发邮件"
               aria-label="记录一件要提醒的事"
               maxLength={MAX_TITLE_LENGTH}
             />
@@ -1550,13 +1558,20 @@ function App() {
                 </option>
               ))}
             </select>
+            <span className="capture-preview" aria-live="polite">
+              {captureIntent.targetDate === plan.selectedDate ? "当前日" : captureIntent.targetDate} ·{" "}
+              {captureIntent.explicitTime == null
+                ? capturePresetItem.label
+                : toTime(captureIntent.explicitTime)}{" "}
+              · {formatMinutes(captureIntent.duration)}
+            </span>
             <button className="primary-button" type="submit">
               <BellRing size={17} />
               <span>记录</span>
             </button>
           </form>
           <div className="template-row scene-row" aria-label="闭环场景模板">
-            {CLOSED_LOOP_TEMPLATES.map((template) => (
+            {visibleTemplates.map((template) => (
               <button
                 key={template.id}
                 className="template-chip"
@@ -1569,6 +1584,19 @@ function App() {
                 <span>{template.summary}</span>
               </button>
             ))}
+            <button
+              className="template-chip more-chip"
+              type="button"
+              aria-expanded={templatesExpanded}
+              onClick={() => setTemplatesExpanded((expanded) => !expanded)}
+            >
+              <strong>{templatesExpanded ? "收起" : "更多"}</strong>
+              <span>
+                {templatesExpanded
+                  ? "保持轻量"
+                  : `还有 ${CLOSED_LOOP_TEMPLATES.length - visibleTemplates.length} 个`}
+              </span>
+            </button>
           </div>
           <div className="command-actions">
             <button
@@ -1580,15 +1608,27 @@ function App() {
               <Wand2 size={17} />
               <span>{aiInbox.isParsing ? "生成中" : "生成草稿"}</span>
             </button>
-            <button className="ghost-button" type="button" onClick={rescueMissedBlocks}>
+            <button
+              className={missedCount ? "ghost-button hot-action" : "ghost-button dimmed-action"}
+              type="button"
+              onClick={rescueMissedBlocks}
+            >
               <RefreshCw size={16} />
               <span>救援 {missedCount || ""}</span>
             </button>
-            <button className="ghost-button" type="button" onClick={rescueWeekBlocks}>
+            <button
+              className={weekMissedCount ? "ghost-button hot-action" : "ghost-button dimmed-action"}
+              type="button"
+              onClick={rescueWeekBlocks}
+            >
               <RefreshCw size={16} />
               <span>本周救援 {weekMissedCount || ""}</span>
             </button>
-            <button className="ghost-button" type="button" onClick={balanceWeekLoad}>
+            <button
+              className={overloadedWeekDays ? "ghost-button hot-action" : "ghost-button dimmed-action"}
+              type="button"
+              onClick={balanceWeekLoad}
+            >
               <ShieldCheck size={16} />
               <span>均衡周 {overloadedWeekDays || ""}</span>
             </button>
@@ -1603,7 +1643,11 @@ function App() {
             </span>
             <span className="status-pill">{firstRunSetup.summary}</span>
             <span
-              className={planSync.status.bark?.configured ? "status-pill online" : "status-pill"}
+              className={[
+                "status-pill",
+                planSync.status.bark?.configured ? "online" : "",
+                planSync.status.pending > 0 && planSync.status.bark?.enabled ? "pulsing" : "",
+              ].join(" ")}
               title={planSync.status.bark?.last?.message || "Bark 手机提醒状态"}
             >
               {planSync.barkSummary}
@@ -1855,6 +1899,12 @@ function App() {
             <Clock3 size={17} />
             <h2 id="timeline-title">{isSelectedToday ? "今日防线" : "当日防线"}</h2>
             <span>{timelineMeta}</span>
+            {(planSync.status.pending > 0 || planSync.status.failed > 0) && (
+              <em className={planSync.status.failed ? "reminder-badge failed" : "reminder-badge"}>
+                <BellRing size={13} />
+                {planSync.status.failed ? planSync.status.failed : planSync.status.pending}
+              </em>
+            )}
           </div>
 
           {selectedBlockIds.size > 0 && (

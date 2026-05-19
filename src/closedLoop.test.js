@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { CAPTURE_PRESETS, CLOSED_LOOP_TEMPLATES, createTemplateDraft } from "./closedLoop.js";
+import {
+  CAPTURE_PRESETS,
+  CLOSED_LOOP_TEMPLATES,
+  createTemplateDraft,
+  parseCaptureIntent,
+} from "./closedLoop.js";
 
 describe("closed loop templates", () => {
   it("ships a broad scene library for daily capture use cases", () => {
@@ -22,5 +27,33 @@ describe("closed loop templates", () => {
       type: "deep",
     });
     expect(draft.reviewQuestions[0]).toContain("改变");
+  });
+
+  it("understands natural capture dates, times, and duration", () => {
+    const intent = parseCaptureIntent("周五下午3点读书45分钟", {
+      selectedDate: "2026-05-20",
+      todayKey: "2026-05-20",
+      preset: CAPTURE_PRESETS[0],
+    });
+
+    expect(intent).toMatchObject({
+      targetDate: "2026-05-22",
+      explicitTime: 15 * 60,
+      duration: 45,
+      hasExplicitDate: true,
+      hasExplicitTime: true,
+    });
+    expect(intent.note).toContain("识别到 2026-05-22");
+  });
+
+  it("uses relative days from today for quick reminders", () => {
+    const intent = parseCaptureIntent("明早8点带作业", {
+      selectedDate: "2026-05-25",
+      todayKey: "2026-05-20",
+      preset: CAPTURE_PRESETS[0],
+    });
+
+    expect(intent.targetDate).toBe("2026-05-21");
+    expect(intent.explicitTime).toBe(8 * 60);
   });
 });

@@ -1,3 +1,5 @@
+import { addDaysISO, isISODate, todayISO } from "./storage.js";
+
 export const FALLBACK_WORKFLOWS = [
   { id: "messy-input", title: "混乱输入生成今日计划", action: "把一段乱输入整理成目标、时间块和提醒" },
   { id: "markdown-extract", title: "长文本 / Markdown 提取", action: "从笔记里抽任务、时间和复盘问题" },
@@ -237,6 +239,105 @@ export function draftToBlocks(draft, makeId) {
     type: block.type || "deep",
     status: "planned",
   }));
+}
+
+const WEEKDAY_INDEX = {
+  一: 1,
+  1: 1,
+  二: 2,
+  2: 2,
+  三: 3,
+  3: 3,
+  四: 4,
+  4: 4,
+  五: 5,
+  5: 5,
+  六: 6,
+  6: 6,
+  日: 0,
+  天: 0,
+  7: 0,
+};
+
+export function parseCaptureIntent(text, options = {}) {
+  const raw = String(text || "");
+  const selectedDate = isISODate(options.selectedDate || "") ? options.selectedDate : todayISO();
+  const todayKey = isISODate(options.todayKey || "") ? options.todayKey : todayISO();
+  const preset = options.preset || CAPTURE_PRESETS[0];
+  const explicitDate = extractDateFromCapture(raw, selectedDate, todayKey);
+  const explicitTime = extractTimeFromCapture(raw);
+  const duration = extractDurationFromCapture(raw) || preset.duration || 25;
+  const targetDate =
+    explicitDate || (preset.mode === "tomorrow" ? addDaysISO(selectedDate, 1) : selectedDate);
+  const noteParts = ["快速记录", preset.label];
+  if (explicitDate) noteParts.push(`识别到 ${targetDate}`);
+  if (explicitTime != null) noteParts.push("识别到输入里的时间");
+  if (duration !== (preset.duration || 25)) noteParts.push(`${duration} 分钟`);
+
+  return {
+    targetDate,
+    explicitTime,
+    duration,
+    note: noteParts.join(" · "),
+    hasExplicitDate: Boolean(explicitDate),
+    hasExplicitTime: explicitTime != null,
+  };
+}
+
+function extractDateFromCapture(text, selectedDate, todayKey) {
+  const iso = String(text).match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+  if (iso && isISODate(iso[1])) return iso[1];
+  if (/大后天/.test(text)) return addDaysISO(todayKey, 3);
+  if (/后天/.test(text)) return addDaysISO(todayKey, 2);
+  if (/明天|明早|明晚/.test(text)) return addDaysISO(todayKey, 1);
+  if (/今天|今晚/.test(text)) return todayKey;
+
+  const weekday = String(text).match(/(下周|这周|本周|周|星期)([一二三四五六日天1-7])/);
+  if (!weekday) return null;
+  const targetDay = WEEKDAY_INDEX[weekday[2]];
+  if (targetDay == null) return null;
+  const base = weekday[1] === "下周" ? addDaysISO(selectedDate, 7) : selectedDate;
+  const current = new Date(base);
+  const currentDay = current.getDay();
+  let offset = targetDay - currentDay;
+  if (weekday[1] === "周" || weekday[1] === "星期") {
+    if (offset < 0) offset += 7;
+  } else if (weekday[1] === "下周") {
+    offset = targetDay - currentDay;
+  }
+  return addDaysISO(base, offset);
+}
+
+function extractTimeFromCapture(text) {
+  const clock = String(text).match(/\b([01]?\d|2[0-3])[:：]([0-5]\d)\b/);
+  if (clock) return Number(clock[1]) * 60 + Number(clock[2]);
+  const chinese = String(text).match(
+    /(凌晨|清晨|早上|早晨|上午|中午|下午|傍晚|晚上|今晚|明早|明晚)?\s*(\d{1,2})\s*点\s*(半|[0-5]?\d\s*分?)?/,
+  );
+  if (!chinese) return null;
+  let hour = Number(chinese[2]);
+  const period = chinese[1] || "";
+  if ((/下午|傍晚|晚上|今晚|明晚/.test(period) || (hour >= 1 && hour <= 6 && /晚/.test(text))) && hour < 12) {
+    hour += 12;
+  }
+  if (/中午/.test(period) && hour < 11) hour += 12;
+  if (hour > 23) return null;
+  const minuteText = chinese[3] || "";
+  const minute = minuteText.includes("半") ? 30 : Number(minuteText.match(/\d+/)?.[0] || 0);
+  return hour * 60 + Math.min(59, minute);
+}
+
+function extractDurationFromCapture(text) {
+  const hour = String(text).match(/(\d(?:\.\d)?)\s*(小时|h|H)/);
+  if (hour) return clampCaptureDuration(Math.round(Number(hour[1]) * 60));
+  const minute = String(text).match(/(\d{1,3})\s*(分钟|分|min|m)/);
+  if (minute) return clampCaptureDuration(Number(minute[1]));
+  return null;
+}
+
+function clampCaptureDuration(minutes) {
+  if (!Number.isFinite(minutes)) return null;
+  return Math.max(10, Math.min(180, Math.round(minutes / 5) * 5));
 }
 
 export function downloadBlob(blob, filename) {
