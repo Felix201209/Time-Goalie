@@ -1,0 +1,21 @@
+[Unit]
+Description=Homework Goalie Bark reminder service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/homework-goalie
+EnvironmentFile=/etc/homework-goalie/homework-goalie.env
+ExecStart=/usr/bin/node /opt/homework-goalie/server/index.mjs
+Restart=always
+RestartSec=5
+User=pi
+Group=pi
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/homework-goalie
+
+[Install]
+WantedBy=multi-user.target
